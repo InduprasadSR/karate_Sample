@@ -64,6 +64,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Value;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -169,10 +171,6 @@ public class Script {
 
     public static final boolean isVariableAndSpaceAndPath(String text) {
         return text.matches("^" + VARIABLE_PATTERN_STRING + "\\s+.+");
-    }
-
-    public static boolean isJavaScriptFunction(String text) {
-        return text.matches("^function\\s*[(].+");
     }
 
     private static final Pattern VAR_AND_PATH_PATTERN = Pattern.compile("\\w+");
@@ -1623,7 +1621,7 @@ public class Script {
         ScriptValue argValue = evalKarateExpression(argString, context);
         ScriptValue sv = evalKarateExpression(name, context);
         switch (sv.getType()) {
-            case JS_FUNCTION:
+            case FUNCTION:
                 switch (argValue.getType()) {
                     case JSON:
                         // force to java map (or list)
@@ -1640,8 +1638,8 @@ public class Script {
                     default:
                         throw new RuntimeException("only json or primitives allowed as (single) function call argument");
                 }
-                ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return evalFunctionCall(som, argValue.getValue(), context);
+                JsValue jv = sv.getValue(JsValue.class);
+                return evalFunctionCall(jv, argValue.getValue(), context);
             case FEATURE:
                 Object callArg = null;
                 switch (argValue.getType()) {
@@ -1674,22 +1672,28 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFunctionCall(ScriptObjectMirror som, Object callArg, ScenarioContext context) {
+    public static ScriptValue evalFunctionCall(JsValue jv, Object callArg, ScenarioContext context) {
         // injects the 'karate' variable into the js function body
         // also ensure that things like 'karate.get' operate on the latest variable state
-        som.setMember(ScriptBindings.KARATE, context.bindings.bridge);
-        Object result;
+        if (context != null) {
+            Value bindings = jv.context.getBindings("js");
+            bindings.putMember(ScriptBindings.KARATE, context.bindings.bridge);
+        }
+        Value result;
         try {
             if (callArg != null) {
-                result = som.call(som, callArg);
+                result = jv.value.execute(JsValue.toJsValue(callArg));
             } else {
-                result = som.call(som);
+                result = jv.value.execute();
             }
-            return new ScriptValue(result);
+            Object jsValue = JsValue.fromJsValue(result, jv.context);
+            return new ScriptValue(jsValue);
         } catch (Exception e) {
             String message = "javascript function call failed: " + e.getMessage();
-            context.logger.error(message);
-            context.logger.error("failed function body: " + som);
+            if (context != null) {
+                context.logger.error(message);
+                context.logger.error("failed function body: " + jv.value);
+            }
             throw new KarateException(message);
         }
     }

@@ -13,9 +13,20 @@
     <properties>
         <antlr.version>4.7.1</antlr.version>
         <netty.version>4.1.18.Final</netty.version>
+        <graal.version>1.0.0-rc11</graal.version>
     </properties>    
 
     <dependencies>
+        <dependency>
+            <groupId>org.graalvm.js</groupId>
+            <artifactId>js-scriptengine</artifactId>
+            <version>${graal.version}</version>
+        </dependency>        
+        <dependency>
+            <groupId>org.graalvm.js</groupId>
+            <artifactId>js</artifactId>
+            <version>${graal.version}</version>
+        </dependency>        
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>

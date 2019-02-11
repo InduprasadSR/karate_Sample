@@ -56,6 +56,7 @@ public class ScriptValue {
         JS_ARRAY,
         JS_OBJECT,
         JS_FUNCTION,
+        FUNCTION,
         BYTE_ARRAY,
         INPUT_STREAM,
         FEATURE
@@ -149,7 +150,7 @@ public class ScriptValue {
     }
 
     public boolean isFunction() {
-        return type == Type.JS_FUNCTION;
+        return type == Type.FUNCTION;
     }
 
     public boolean isListLike() {
@@ -275,8 +276,8 @@ public class ScriptValue {
     }
 
     public ScriptValue invokeFunction(ScenarioContext context, Object callArg) {
-        ScriptObjectMirror som = getValue(ScriptObjectMirror.class);
-        return Script.evalFunctionCall(som, callArg, context);
+        JsValue jv = getValue(JsValue.class);
+        return Script.evalFunctionCall(jv, callArg, context);
     }
 
     public Map<String, Object> evalAsMap(ScenarioContext context) {
@@ -410,6 +411,10 @@ public class ScriptValue {
                 return new ByteArrayInputStream(getAsString().getBytes());
         }
     }
+    
+    public Object getAsJsValue() {
+        return JsValue.toJsValue(getAfterConvertingFromJsonOrXmlIfNeeded());
+    }
 
     public Object getAfterConvertingFromJsonOrXmlIfNeeded() {
         switch (type) {
@@ -471,6 +476,8 @@ public class ScriptValue {
             type = Type.INPUT_STREAM;
         } else if (Script.isPrimitive(value.getClass())) {
             type = Type.PRIMITIVE;
+        } else if (value instanceof JsValue) {
+            type = Type.FUNCTION;
         } else if (value instanceof Feature) {
             type = Type.FEATURE;
         } else {

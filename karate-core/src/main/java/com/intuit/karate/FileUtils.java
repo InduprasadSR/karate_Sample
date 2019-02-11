@@ -185,7 +185,7 @@ public class FileUtils {
             InputStream is = getFileStream(path, context);
             return toString(is);
         } catch (Exception e) {
-            String message = String.format("could not find or read file: %s", path);
+            String message = String.format("[karate:file] could not find or read file: %s", path);
             context.logger.trace("{}", message);
             throw new KarateFileNotFoundException(message);
         }

@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.graalvm.polyglot.Context;
 
 /**
  *
@@ -77,6 +78,8 @@ public class ScenarioContext {
     public final ExecutionHook executionHook;
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
+    
+    public final Context jsContext;
 
     // these can get re-built or swapped, so cannot be final
     private Config config;
@@ -223,18 +226,21 @@ public class ScenarioContext {
             rootFeatureContext = call.context.rootFeatureContext;
             driver = call.context.driver;
             webSocketClients = call.context.webSocketClients;
+            jsContext = call.context.jsContext;
         } else if (call.context != null) {
             parentContext = call.context;
             // complex objects like JSON and XML are "global by reference" TODO           
             vars = call.context.vars.copy(false);
             config = new Config(call.context.config);
             rootFeatureContext = call.context.rootFeatureContext;
+            jsContext = call.context.jsContext;
         } else {
             parentContext = null;
             vars = new ScriptValueMap();
             config = new Config();
             config.setClientClass(call.httpClientClass);
             rootFeatureContext = featureContext;
+            jsContext = Context.newBuilder().option("js.nashorn-compat", "true").allowAllAccess(true).build();
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
@@ -319,6 +325,7 @@ public class ScenarioContext {
         callResults = sc.callResults;
         webSocketClients = sc.webSocketClients;
         signalResult = sc.signalResult;
+        jsContext = sc.jsContext;
     }
 
     public void configure(Config config) {

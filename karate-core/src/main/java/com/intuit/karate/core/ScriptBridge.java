@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.AssertionResult;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsValue;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.Script;
@@ -50,7 +51,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Value;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
@@ -79,8 +81,7 @@ public class ScriptBridge implements PerfContext {
     
     public Object read(String fileName) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
-        // json should behave like json within js / function
-        return sv.isJsonLike() ? sv.getAfterConvertingFromJsonOrXmlIfNeeded() : sv.getValue();
+        return sv.getAsJsValue();
     }
     
     public String readAsString(String fileName) {
@@ -148,55 +149,55 @@ public class ScriptBridge implements PerfContext {
         return map;
     }   
     
-    public void forEach(Map<String, Object> map, ScriptObjectMirror som) {
+    public void forEach(Map<String, Object> map, Value fun) {
         if (map == null) {
             return;
         }
-        if (!som.isFunction()) {
-            throw new RuntimeException("not a JS function: " + som);
+        if (!fun.canExecute()) {
+            throw new RuntimeException("not a JS function: " + fun);
         }
         AtomicInteger i = new AtomicInteger();
-        map.forEach((k, v) -> som.call(som, k, v, i.getAndIncrement()));
+        map.forEach((k, v) -> fun.execute(k, v, i.getAndIncrement()));
     }    
     
-    public void forEach(List list, ScriptObjectMirror som) {
+    public void forEach(List list, Value fun) {
         if (list == null) {
             return;
         }
-        if (!som.isFunction()) {
-            throw new RuntimeException("not a JS function: " + som);
+        if (!fun.canExecute()) {
+            throw new RuntimeException("not a JS function: " + fun);
         }
         for (int i = 0; i < list.size(); i++) {
-            som.call(som, list.get(i), i);
+            fun.execute(list.get(i), i);
         }
     }    
     
-    public Object map(List list, ScriptObjectMirror som) {
+    public Object map(List list, Value fun) {
         if (list == null) {
             return new ArrayList();
         }
-        if (!som.isFunction()) {
-            throw new RuntimeException("not a JS function: " + som);
+        if (!fun.canExecute()) {
+            throw new RuntimeException("not a JS function: " + fun);
         }
         List res = new ArrayList(list.size());
         for (int i = 0; i < list.size(); i++) {
-            Object y = som.call(som, list.get(i), i);
+            Object y = fun.execute(list.get(i), i);
             res.add(y);
         }
         return res;
     }
     
-    public Object filter(List list, ScriptObjectMirror som) {
+    public Object filter(List list, Value fun) {
         if (list == null) {
             return new ArrayList();
         }
-        if (!som.isFunction()) {
-            throw new RuntimeException("not a JS function: " + som);
+        if (!fun.canExecute()) {
+            throw new RuntimeException("not a JS function: " + fun);
         }
         List res = new ArrayList();
         for (int i = 0; i < list.size(); i++) {
             Object x = list.get(i);
-            Object y = som.call(som, x, i);
+            Object y = fun.execute(x, i);
             if (y instanceof Boolean) {
                 if ((Boolean) y) {
                     res.add(x);
@@ -259,9 +260,9 @@ public class ScriptBridge implements PerfContext {
             case FEATURE:
                 Feature feature = sv.getValue(Feature.class);
                 return Script.evalFeatureCall(feature, arg, context, false).getValue();
-            case JS_FUNCTION:
-                ScriptObjectMirror som = sv.getValue(ScriptObjectMirror.class);
-                return Script.evalFunctionCall(som, arg, context).getValue();
+            case FUNCTION:
+                JsValue jv = sv.getValue(JsValue.class);
+                return Script.evalFunctionCall(jv, arg, context).getValue();
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
@@ -336,7 +337,7 @@ public class ScriptBridge implements PerfContext {
     }    
     
     public void abort() {
-        throw new KarateAbortException(null);
+        throw new KarateAbortException("[karate:abort]");
     }
     
     public void embed(Object o, String contentType) {
@@ -372,11 +373,12 @@ public class ScriptBridge implements PerfContext {
         context.signal(result);
     }
     
-    public Object listen(long timeout, ScriptObjectMirror som) {
-        if (!som.isFunction()) {
-            throw new RuntimeException("not a JS function: " + som);
+    public Object listen(long timeout, Value value) {
+        if (!value.canExecute()) {
+            throw new RuntimeException("not a JS function: " + value);
         }
-        return context.listen(timeout, () -> Script.evalFunctionCall(som, null, context));
+        JsValue jsValue = new JsValue(value, context.bindings.CONTEXT);
+        return context.listen(timeout, () -> Script.evalFunctionCall(jsValue, null, context));
     }
     
     public Object listen(long timeout) {

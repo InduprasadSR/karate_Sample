@@ -37,7 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.script.Bindings;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Value;
 
 /**
  *
@@ -50,7 +51,7 @@ public class Tags implements Iterable<Tag> {
     private final Collection<Tag> original;
     private final List<String> tags;
     private Map<String, List<String>> tagValues;
-    private final Bindings bindings;
+    private final Context context;
 
     @Override
     public Iterator<Tag> iterator() {
@@ -88,14 +89,17 @@ public class Tags implements Iterable<Tag> {
             return isAllOf(args) && args.length == values.size();
         }
         
-        public boolean isEach(ScriptObjectMirror som) {
-            if (!som.isFunction()) {
+        public boolean isEach(Value v) {
+            if (!v.canExecute()) {
                 return false;
             }            
             for (String s : values) {
-                Object o = som.call(som, s);
-                ScriptValue sv = new ScriptValue(o);
-                if (!sv.isBooleanTrue()) {
+                Value o = v.execute(s);
+                if (o.isBoolean()) {
+                    if (!o.asBoolean()) {
+                        return false;
+                    }
+                } else {
                     return false;
                 }
             }
@@ -118,7 +122,7 @@ public class Tags implements Iterable<Tag> {
         if (tagSelector == null) {
             return true;
         }
-        ScriptValue sv = ScriptBindings.eval(tagSelector, bindings);
+        ScriptValue sv = ScriptBindings.eval(tagSelector, context);
         return sv.isBooleanTrue();
     }
 
@@ -151,16 +155,17 @@ public class Tags implements Iterable<Tag> {
                 tagValues.put(tag.getName(), tag.getValues());
             }
         }
-        bindings = ScriptBindings.createBindings();
-        bindings.put("bridge", this);
-        ScriptValue anyOfFun = ScriptBindings.eval("function(){ return bridge.anyOf(arguments) }", bindings);
-        ScriptValue allOfFun = ScriptBindings.eval("function(){ return bridge.allOf(arguments) }", bindings);
-        ScriptValue notFun = ScriptBindings.eval("function(){ return bridge.not(arguments) }", bindings);
-        ScriptValue valuesForFun = ScriptBindings.eval("function(s){ return bridge.valuesFor(s) }", bindings);
-        bindings.put("anyOf", anyOfFun.getValue());
-        bindings.put("allOf", allOfFun.getValue());
-        bindings.put("not", notFun.getValue());
-        bindings.put("valuesFor", valuesForFun.getValue());
+        context = Context.newBuilder("js").allowAllAccess(true).build();
+        Value bindings = context.getBindings("js");
+        bindings.putMember("bridge", this);
+        ScriptValue anyOfFun = ScriptBindings.eval("function(){ return bridge.anyOf(arguments) }", context);
+        ScriptValue allOfFun = ScriptBindings.eval("function(){ return bridge.allOf(arguments) }", context);
+        ScriptValue notFun = ScriptBindings.eval("function(){ return bridge.not(arguments) }", context);
+        ScriptValue valuesForFun = ScriptBindings.eval("function(s){ return bridge.valuesFor(s) }", context);
+        bindings.putMember("anyOf", anyOfFun.getAsJsValue());
+        bindings.putMember("allOf", allOfFun.getAsJsValue());
+        bindings.putMember("not", notFun.getAsJsValue());
+        bindings.putMember("valuesFor", valuesForFun.getAsJsValue());
     }
 
     private static String removeTagPrefix(String s) {
@@ -180,21 +185,21 @@ public class Tags implements Iterable<Tag> {
         return list;
     }
 
-    public boolean anyOf(ScriptObjectMirror som) {
-        for (String s : removeTagPrefix(som.values())) {
-            if (tags.contains(s)) {
+    public boolean anyOf(Value v) {        
+        for (Object s : removeTagPrefix(v.as(List.class))) {
+            if (tags.contains((String) s)) {
                 return true;
             }
         }
         return false;
     }
 
-    public boolean allOf(ScriptObjectMirror som) {
-        return tags.containsAll(removeTagPrefix(som.values()));
+    public boolean allOf(Value v) {
+        return tags.containsAll(removeTagPrefix(v.as(List.class)));
     }
 
-    public boolean not(ScriptObjectMirror som) {
-        return !anyOf(som);
+    public boolean not(Value v) {
+        return !anyOf(v);
     }
 
     public Values valuesFor(String name) {

@@ -40,7 +40,6 @@ public class ScriptTest {
     @Test
     public void testParsingTextType() {
         assertTrue(Script.isVariable("foo"));
-        assertTrue(Script.isJavaScriptFunction("function(){ return { bar: 'baz' } }"));
         assertTrue(Script.isXmlPath("/foo"));
         assertTrue(Script.isXmlPath("//foo"));
         assertTrue(Script.isXmlPathFunction("lower-case('Foo')"));
@@ -61,7 +60,7 @@ public class ScriptTest {
         assertEquals("barbaz", value.getValue());
         value = Script.evalJsExpression("a + b", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
-        assertEquals(3.0, value.getValue());
+        assertEquals(3, value.getValue());
     }
 
     @Test
@@ -81,7 +80,7 @@ public class ScriptTest {
         assertEquals("bar5", value.getValue());
         value = Script.evalJsExpression("myMap.myList[0] + myMap.myList[1]", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
-        assertEquals(3.0, value.getValue());
+        assertEquals(3, value.getValue());
     }
 
     @Test
@@ -168,7 +167,7 @@ public class ScriptTest {
         ctx.vars.put("myXml", doc);
         ScriptValue value = Script.evalXmlPathOnVarByName("myXml", "/root/foo", ctx);
         assertEquals(ScriptValue.Type.STRING, value.getType());
-        assertEquals("3.0", value.getAsString());
+        assertEquals("3", value.getAsString());
     }
 
     @Test
@@ -226,7 +225,7 @@ public class ScriptTest {
         ctx.vars.put("myJson", doc);
         ScriptValue value = Script.evalJsonPathOnVarByName("myJson", "$.foo", ctx);
         assertEquals(ScriptValue.Type.PRIMITIVE, value.getType());
-        assertEquals(3.0, value.getValue());
+        assertEquals(3, value.getValue());
     }
 
     @Test
@@ -750,7 +749,7 @@ public class ScriptTest {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(){ return { bar: 'baz' } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
-        assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
+        assertEquals(ScriptValue.Type.FUNCTION, testFoo.getType());
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "foo", null, ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("baz", testBar.getValue());
@@ -779,7 +778,7 @@ public class ScriptTest {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(a){ return { bar: a } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
-        assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
+        assertEquals(ScriptValue.Type.FUNCTION, testFoo.getType());
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "foo", "'hello'", ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("hello", testBar.getValue());
@@ -790,7 +789,7 @@ public class ScriptTest {
         ScenarioContext ctx = getContext();
         Script.assign("foo", "function(a){ return { bar: a.hello } }", ctx);
         ScriptValue testFoo = ctx.vars.get("foo");
-        assertEquals(ScriptValue.Type.JS_FUNCTION, testFoo.getType());
+        assertEquals(ScriptValue.Type.FUNCTION, testFoo.getType());
         Script.callAndUpdateConfigAndAlsoVarsIfMapReturned(false, "foo", "{ hello: 'world' }", ctx);
         ScriptValue testBar = ctx.vars.get("bar");
         assertEquals("world", testBar.getValue());
@@ -1667,12 +1666,12 @@ public class ScriptTest {
         ScenarioContext ctx = getContext();
         Script.assign("fun", "function(){ var env = 'dev'; var config = { env: env }; return config }", ctx);
         Script.assign("json", "fun()", ctx);
-        Map value = (Map) ctx.vars.get("json").getValue();
+        Map value = ctx.vars.get("json").getAsMap();
         value.put("child", value);
         value = JsonUtils.removeCyclicReferences(value);
         DocumentContext doc = JsonUtils.toJsonDoc(value);
         Map temp = doc.read("$");
-        Match.equals(temp, "{ env: 'dev', child: { env: 'dev', child: '#jdk.nashorn.api.scripting.ScriptObjectMirror' } }");
+        Match.equals(temp, "{ env: 'dev', child: '#java.util.LinkedHashMap' }");
     }
 
 }
