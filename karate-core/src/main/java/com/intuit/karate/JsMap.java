@@ -59,7 +59,7 @@ public class JsMap implements ProxyObject {
 
     @Override
     public void putMember(String key, Value value) {
-        map.put(key, value.isHostObject() ? value.asHostObject() : value);
+        map.put(key, JsValue.fromJsValueSimple(value));
     }
 
     @Override

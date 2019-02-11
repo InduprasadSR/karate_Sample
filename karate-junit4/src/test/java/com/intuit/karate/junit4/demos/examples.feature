@@ -19,7 +19,7 @@ Then match cat.kittens[*].id contains [42, 23]
 Then match each cat.kittens contains { id: '#number' }
 Then match each cat.kittens == { id: '#notnull', name: '#regex [A-Z][a-z]+' }
 
-* def isLessThanFifty = function(x) { return x < 50 } // >
+* def isLessThanFifty = function(x) { return x < 50 }
 Then match each cat.kittens contains { id: '#? isLessThanFifty(_)' }
 
 * def expected = [{ id: 42, name: 'Wild' }, { id: 23, name: 'Bob' }]

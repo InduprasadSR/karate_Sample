@@ -8,7 +8,7 @@ Scenario: case-insensitive sort
     * def actual = $json[*].v
     * match actual == ['C', 'b', 'A']
     * def list = new ArrayList()
-    * eval for (var i = 0; i < actual.length; i++) list.add(actual[i])
+    * eval for (var i = 0; i < actual.length; i++) karate.add('list', actual[i])
     * match list == ['C', 'b', 'A']
     * eval Collections.sort(list, java.lang.String.CASE_INSENSITIVE_ORDER)
     * match list == ['A', 'b', 'C']

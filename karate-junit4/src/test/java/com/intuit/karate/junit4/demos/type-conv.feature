@@ -112,11 +112,10 @@ Scenario: xml with namespaces
     * match jsonVar $..ns2:foo.@ contains only { fizz: 'buzz', ping: 'pong' }
     * match each jsonVar $..ns2:foo.@ contains { ping: 'pong' }
 
-Scenario: json to java map - useful in some situations
-    here we want to get the "first key" out of a given json
+Scenario: getting keys out of json
     * def response = { "key1": { "a" : 1 }, "key2" : { "b": 1 } }
-    * def map = karate.toBean(response, 'java.util.LinkedHashMap')
-    * def first = map.keySet().iterator().next()
+    * def keys = karate.keysOf(response)
+    * def first = keys[0]
     * match first == 'key1'
 
 Scenario: java pojo to json
@@ -162,10 +161,10 @@ Scenario: json path on a string should auto-convert
 Scenario: js and numbers - float vs int
     * def foo = '10'
     * string json = { bar: '#(1 * foo)' }
-    * match json == '{"bar":10.0}'
+    * match json == '{"bar":10}'
 
     * string json = { bar: '#(parseInt(foo))' }
-    * match json == '{"bar":10.0}'
+    * match json == '{"bar":10}'
 
     * def foo = 10
     * string json = { bar: '#(foo)' }
@@ -175,13 +174,13 @@ Scenario: js and numbers - float vs int
     * string json = { bar: '#(~~foo)' }
     * match json == '{"bar":10}'
 
-    # unfortunately JS math always results in a double
     * def foo = 10
     * string json = { bar: '#(1 * foo)' }
-    * match json == '{"bar":10.0}'
+    * match json == '{"bar":10}'
 
-    # but you can easily coerce to an integer if needed
-    * string json = { bar: '#(~~(1 * foo))' }
+    # you can easily coerce a decimal number to an integer if needed
+    * def foo = 10.0
+    * string json = { bar: '#(~~foo)' }
     * match json == '{"bar":10}'
 
 Scenario: large numbers in json - use java BigDecimal

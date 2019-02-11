@@ -25,11 +25,14 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.Proxy;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -63,13 +66,13 @@ public class JsValue {
         } else if (o instanceof List) {
             return new JsList((List) o);
         } else if (o instanceof Map) {
-            return new JsMap((Map) o);
+            return new JsMap((Map) o);           
         } else {
             return o;
         }
     }
     
-    public static Object fromJsValue(Value v, Context c) {
+    public static Object fromJsValue(Value v, Context c) {        
         if (v.canExecute()) {
             return new JsValue(v, c);
         } else if (v.isString()) {
@@ -82,10 +85,17 @@ public class JsValue {
             return null;            
         } else if (v.isHostObject()) {
             Object o = v.asHostObject();
-            if (o instanceof Feature 
-                    || o instanceof InputStream 
-                    || o instanceof Map 
-                    || o instanceof List) {
+            if (o instanceof JsMap) {
+                return ((JsMap) o).getValue();
+            } else if (o instanceof JsList) {
+                return ((JsList) o).getValue();
+            } else if (o instanceof Feature 
+                    || o instanceof InputStream
+                    || o instanceof Node
+                    // Map and List can happen when a Java function returns Map or List
+                    || o instanceof Map && !(o instanceof Properties) // relevant edge case
+                    || o instanceof List
+                    || o instanceof BigDecimal) {
                 return o;
             } else { // unknown Java object
                 return new JsValue(v, c);
@@ -101,10 +111,26 @@ public class JsValue {
             }
         } else if (v.hasMembers()) { // object or array that originated from JS
             String json = toJson(v, c);
-            return JsonUtils.toJsonDoc(json);
+            return JsonUtils.toJsonDoc(json).read("$");
         } else {
             throw new RuntimeException("unable to unpack: " + v);
         }
     }
-
+    
+    public static Object fromJsValueSimple(Value v) {
+        if (v.isString()) {
+            return v.asString();
+        } else if (v.isNumber()) {
+            return v.as(Number.class);
+        } else if (v.isBoolean()) {
+            return v.asBoolean();
+        } else if (v.isNull()) {
+            return null;            
+        } else if (v.isHostObject()) { 
+            return v.asHostObject();
+        } else {
+            return v;
+        }    
+    }
+    
 }

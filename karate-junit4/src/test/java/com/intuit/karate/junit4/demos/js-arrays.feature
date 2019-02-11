@@ -13,14 +13,12 @@ Scenario: arrays returned from js can be modified using 'set'
     * set json[1].a = 5
     * match json == [{a: 1}, {a: 5}, {b: 3}]
 
-Scenario: json behaves like a java map within functions
+Scenario: utilities to get info about json objects / keys and values
     * def payload = { a: 1, b: 2 }
-    * def keys = function(obj){ return payload.keySet() }
-    * def values = function(obj){ return payload.values() }
-    * json result = keys(payload)
-    * match result == ['a', 'b']
-    * json result = values(payload)
-    * match result == [1, 2]
+    * def keys = karate.keysOf(payload)
+    * match keys == ['a', 'b']
+    * def values = karate.valuesOf(payload)
+    * match values == [1, 2]
 
 Scenario: json-path can be performed in js
     * def json = [{foo: 1}, {foo: 2}]
@@ -38,17 +36,16 @@ Scenario: set via json-path can be done in js
     * eval karate.set('json', '$.foo[]', { bar: 'baz' })
     * match json == { foo: [{ bar: 'baz' }] }
 
-Scenario: this seems to be a bug in Nashorn, refer: https://github.com/intuit/karate/issues/225
-    adding this test to detect if ever the JDK behavior changes
+Scenario: used to be a bug when we used nashorn, now js arrays stay as lists
     * def actual = ({ a: [1, 2, 3]})
-    * match actual == { a: { '0': 1, '1': 2, '2': 3 }}
+    * match actual == { a: [1, 2, 3] }
     * def temp = [1, 2, 3]
     * def actual = ({ a: temp })
     * match actual == { a: [1, 2, 3] }
 
 Scenario: karate forEach operation on lists
     * def res = []
-    * def fun = function(x){ res.add(x * x) }
+    * def fun = function(x){ karate.add('res', x * x) }
     * def list = [1, 2, 3]
     * eval karate.forEach(list, fun)
     * match res == [1, 4, 9]
@@ -75,7 +72,7 @@ Scenario: karate forEach operation on maps
     * def keys = []
     * def vals = []
     * def idxs = []
-    * def fun = function(x, y, i){ keys.add(x); vals.add(y); idxs.add(i) }
+    * def fun = function(x, y, i){ karate.add('keys', x); karate.add('vals', y); karate.add('idxs', i) }
     * def map = { a: 2, b: 4, c: 6 }
     * eval karate.forEach(map, fun)
     * match keys == ['a', 'b', 'c']
@@ -92,7 +89,7 @@ Scenario: karate find index of first match (primitive)
     * def list = [1, 2, 3, 4]
     * def searchFor = 3
     * def foundAt = []
-    * def fun = function(x, i){ if (x == searchFor) foundAt.add(i) }
+    * def fun = function(x, i){ if (x == searchFor) karate.add('foundAt', i) }
     * eval karate.forEach(list, fun)
     * match foundAt == [2]
 
@@ -100,14 +97,14 @@ Scenario: karate find index of first match (complex)
     * def list = [{ a: 1, b: 'x'}, { a: 2, b: 'y'}, { a: 3, b: 'z'}]
     * def searchFor = { a: 2, b: '#string'}
     * def foundAt = []
-    * def fun = function(x, i){ if (karate.match(x, searchFor).pass) foundAt.add(i) }
+    * def fun = function(x, i){ if (karate.match(x, searchFor).pass) karate.add('foundAt', i) }
     * eval karate.forEach(list, fun)
     * match foundAt == [1]
 
 Scenario: simplest way to get the size of a json object
     * def json = { a: 1, b: 2, c: 3 }
     * def map = karate.toBean(json, 'java.util.HashMap')
-    * def count = map.size()
+    * def count = karate.sizeOf(map)
     * match count == 3
 
 Scenario: get last array element (js)
@@ -135,7 +132,7 @@ Scenario: work around for the above
         """
     * def products = read('products.json')
     * def result = []
-    * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) result.add(products[i]) 
+    * eval for(var i = 0; i < products.length; i++) if (hasId(products[i], 1)) karate.add('result', products[i]) 
     # >
     * match result[*].name == ['Wotsit v1.5', 'Wotsit v2.5']
 

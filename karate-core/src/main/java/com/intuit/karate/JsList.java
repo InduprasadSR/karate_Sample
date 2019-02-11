@@ -38,7 +38,7 @@ public class JsList implements ProxyArray {
     public JsList(List list) {
         this.list = list;
     }
-
+    
     public List getValue() {
         return list;
     }        
@@ -50,7 +50,7 @@ public class JsList implements ProxyArray {
 
     @Override
     public void set(long index, Value value) {
-        list.set((int) index, value.isHostObject() ? value.asHostObject() : value);
+        list.set((int) index, JsValue.fromJsValueSimple(value));
     }
 
     @Override

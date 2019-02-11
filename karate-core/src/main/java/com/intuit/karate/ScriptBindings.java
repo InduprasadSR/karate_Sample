@@ -128,18 +128,21 @@ public class ScriptBindings implements Bindings {
         }
     }
 
-    private ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) {
+    private ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) { // TODO optimize
+        Value bindings = CONTEXT.getBindings("js");
         if (ec == null) {
             adds.remove(Script.VAR_SELF);
+            bindings.removeMember(Script.VAR_SELF);
             adds.remove(Script.VAR_ROOT);
+            bindings.removeMember(Script.VAR_ROOT);
             adds.remove(Script.VAR_PARENT);
+            bindings.removeMember(Script.VAR_PARENT);
         } else {
             // ec.selfValue will never be null
             adds.put(Script.VAR_SELF, ec.selfValue.getAsJsValue());
             adds.put(Script.VAR_ROOT, new ScriptValue(ec.root).getAsJsValue());
             adds.put(Script.VAR_PARENT, new ScriptValue(ec.parent).getAsJsValue());
-        }
-        Value bindings = CONTEXT.getBindings("js");
+        }        
         forEach((k, v) -> {
             bindings.putMember(k, v);
         });        
