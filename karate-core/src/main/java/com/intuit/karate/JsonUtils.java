@@ -47,7 +47,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import net.minidev.json.JSONStyle;
 import net.minidev.json.JSONValue;
 import net.minidev.json.reader.JsonWriter;
@@ -64,22 +63,6 @@ public class JsonUtils {
         // only static methods
     }
 
-    private static class NashornObjectJsonWriter implements JsonWriterI<ScriptObjectMirror> {
-
-        @Override
-        public <E extends ScriptObjectMirror> void writeJSONString(E value, Appendable out, JSONStyle compression) throws IOException {
-            if (value.isArray()) {
-                Object[] array = value.values().toArray();
-                JsonWriter.arrayWriter.writeJSONString(array, out, compression);
-            } else if (value.isFunction()) {
-                JsonWriter.toStringWriter.writeJSONString("\"#function\"", out, compression);
-            } else { // JSON
-                JsonWriter.JSONMapWriter.writeJSONString(value, out, compression);
-            }
-        }
-
-    }
-
     private static class FeatureJsonWriter implements JsonWriterI<Feature> {
 
         @Override
@@ -91,7 +74,6 @@ public class JsonUtils {
 
     static {
         // prevent things like the karate script bridge getting serialized (especially in the javafx ui)
-        JSONValue.registerWriter(ScriptObjectMirror.class, new NashornObjectJsonWriter());
         JSONValue.registerWriter(Feature.class, new FeatureJsonWriter());
         // ensure that even if jackson (databind?) is on the classpath, don't switch provider
         Configuration.setDefaults(new Configuration.Defaults() {
@@ -138,8 +120,7 @@ public class JsonUtils {
     }
 
     private static boolean recurseCyclic(int depth, Object o, Set<Object> seen) {
-        // we use a depth check because for some reason 
-        // ScriptObjectMirror has some object equality problems for entries
+        // we use a depth check in case objects from the js world don't implement equals() the way we want
         if (o instanceof Map) {
             if (depth > 10 || !seen.add(o)) {
                 return true;

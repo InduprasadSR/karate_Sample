@@ -220,7 +220,8 @@ public class ScriptBridge implements PerfContext {
         } else {
             doc = JsonPath.parse(o);
         }
-        return doc.read(exp);
+        Object result = doc.read(exp);
+        return JsValue.toJsValue(result);
     }
     
     public Object lowerCase(Object o) {

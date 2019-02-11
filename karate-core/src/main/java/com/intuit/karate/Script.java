@@ -63,8 +63,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
@@ -630,15 +628,17 @@ public class Script {
         return sv;
     }
 
-    public static DocumentContext toJsonDoc(ScriptValue sv, ScenarioContext context) {
+    public static DocumentContext toJsonDoc(ScriptValue sv, ScenarioContext context) { // TODO duplication with ScriptValue
         if (sv.getType() == JSON) { // optimize
             return (DocumentContext) sv.getValue();
         } else if (sv.isListLike()) {
             return JsonPath.parse(sv.getAsList());
         } else if (sv.isMapLike()) {
             return JsonPath.parse(sv.getAsMap());
-        } else if (sv.isUnknownType()) { // POJO
-            return JsonUtils.toJsonDoc(sv.getValue());
+        } else if (sv.isJavaObject()) {
+            JsValue jv =  sv.getValue(JsValue.class);
+            Object o = jv.value.asHostObject(); // has to be separate step to avoid confusing  method overloading
+            return JsonUtils.toJsonDoc(o);
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
             if (temp.getType() != JSON) {
@@ -655,8 +655,10 @@ public class Script {
             return sv.getValue(Node.class);
         } else if (sv.isMapLike()) {
             return XmlUtils.fromMap(sv.getAsMap());
-        } else if (sv.isUnknownType()) {
-            return XmlUtils.toXmlDoc(sv.getValue());
+        } else if (sv.isJavaObject()) {
+            JsValue jv =  sv.getValue(JsValue.class);
+            Object o = jv.value.asHostObject(); // has to be separate step to avoid confusing  method overloading          
+            return XmlUtils.toXmlDoc(o);
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
             if (temp.getType() != XML) {
@@ -1041,10 +1043,9 @@ public class Script {
         DocumentContext actualDoc;
         switch (actual.getType()) {
             case JSON:
-            case JS_ARRAY:
-            case JS_OBJECT:
             case MAP:
             case LIST:
+            case JAVA_OBJECT:
                 actualDoc = actual.getAsJsonDocument();
                 break;
             case XML: // auto convert !
@@ -1117,11 +1118,7 @@ public class Script {
             case JSON: // convert to map or list
                 expObject = expected.getValue(DocumentContext.class).read("$");
                 break;
-            case JS_ARRAY: // array returned by js function, needs conversion to list
-                ScriptObjectMirror som = expected.getValue(ScriptObjectMirror.class);
-                expObject = new ArrayList(som.values());
-                break;
-            default: // btw JS_OBJECT is already a map 
+            default:
                 expObject = expected.getValue();
         }
         switch (matchType) {
@@ -1460,7 +1457,7 @@ public class Script {
         } else if (isPrimitive(expObject.getClass())) {
             return matchPrimitive(matchType, path, actObject, expObject);
         } else { // this should never happen
-            throw new RuntimeException("unexpected type: " + expObject.getClass());
+            throw new RuntimeException("unexpected type (match): " + expObject.getClass());
         }
     }
 
@@ -1626,8 +1623,6 @@ public class Script {
                     case JSON:
                         // force to java map (or list)
                         argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
-                    case JS_ARRAY:
-                    case JS_OBJECT:
                     case MAP:
                     case LIST:
                     case STRING:
@@ -1651,13 +1646,6 @@ public class Script {
                         break;
                     case MAP:
                         callArg = argValue.getValue(Map.class);
-                        break;
-                    case JS_OBJECT:
-                        callArg = argValue.getValue(ScriptObjectMirror.class);
-                        break;
-                    case JS_ARRAY:
-                        ScriptObjectMirror temp = argValue.getValue(ScriptObjectMirror.class);
-                        callArg = temp.values();
                         break;
                     case NULL:
                         break;

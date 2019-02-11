@@ -27,7 +27,6 @@ import com.intuit.karate.http.HttpClient;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
 
 /**
  *
@@ -192,9 +191,9 @@ public class Config {
                     proxyUri = (String) map.get("uri");
                     proxyUsername = (String) map.get("username");
                     proxyPassword = (String) map.get("password");
-                    ScriptObjectMirror temp = (ScriptObjectMirror) map.get("nonProxyHosts");
+                    List temp = (List) map.get("nonProxyHosts");
                     if (temp != null) {
-                        nonProxyHosts = (List) temp.values();
+                        nonProxyHosts = temp;
                     }
                 }
                 return true;

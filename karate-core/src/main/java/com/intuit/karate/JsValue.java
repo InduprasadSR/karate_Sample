@@ -23,6 +23,8 @@
  */
 package com.intuit.karate;
 
+import com.intuit.karate.core.Feature;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import org.graalvm.polyglot.Context;
@@ -37,10 +39,12 @@ public class JsValue {
 
     public final Context context;
     public final Value value;
+    public final boolean function;
 
     public JsValue(Value value, Context context) {
         this.value = value;
         this.context = context;
+        this.function = value.canExecute();
     }
     
     public static String toJson(Value v, Context c) {
@@ -54,7 +58,7 @@ public class JsValue {
     }
 
     public static Object toJsValue(Object o) {
-        if (o instanceof JsValue) { // FUNCTION
+        if (o instanceof JsValue) { // FUNCTION, JAVA_OBJECT
             return ((JsValue) o).value;
         } else if (o instanceof List) {
             return new JsList((List) o);
@@ -68,8 +72,24 @@ public class JsValue {
     public static Object fromJsValue(Value v, Context c) {
         if (v.canExecute()) {
             return new JsValue(v, c);
+        } else if (v.isString()) {
+            return v.asString();
+        } else if (v.isNumber()) {
+            return v.as(Number.class);
+        } else if (v.isBoolean()) {
+            return v.asBoolean();
+        } else if (v.isNull()) {
+            return null;            
         } else if (v.isHostObject()) {
-            return v.asHostObject();
+            Object o = v.asHostObject();
+            if (o instanceof Feature 
+                    || o instanceof InputStream 
+                    || o instanceof Map 
+                    || o instanceof List) {
+                return o;
+            } else { // unknown Java object
+                return new JsValue(v, c);
+            }            
         } else if (v.isProxyObject()) {
             Proxy proxy = v.asProxyObject();
             if (proxy instanceof JsList) {
@@ -79,15 +99,7 @@ public class JsValue {
             } else {
                 throw new RuntimeException("unexpected proxy: " + proxy);
             }
-        } else if (v.isString()) {
-            return v.asString();
-        } else if (v.isNumber()) {
-            return v.as(Number.class);
-        } else if (v.isBoolean()) {
-            return v.asBoolean();
-        } else if (v.isNull()) {
-            return null;
-        } else if (v.hasMembers()) { // JS object or array
+        } else if (v.hasMembers()) { // object or array that originated from JS
             String json = toJson(v, c);
             return JsonUtils.toJsonDoc(json);
         } else {
