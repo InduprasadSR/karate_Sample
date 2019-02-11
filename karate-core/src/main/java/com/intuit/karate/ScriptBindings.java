@@ -27,8 +27,6 @@ import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
-import com.intuit.karate.driver.Driver;
-import com.oracle.truffle.js.scriptengine.GraalJSScriptEngine;
 import java.io.File;
 import java.util.Collection;
 import java.util.HashMap;
@@ -37,8 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.script.Bindings;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -51,15 +47,6 @@ import org.graalvm.polyglot.Value;
  * @author pthomas3
  */
 public class ScriptBindings implements Bindings {
-
-    private static final ScriptEngine SCRIPT_ENGINE;
-
-    static {
-        SCRIPT_ENGINE = new ScriptEngineManager().getEngineByName("graal.js");
-        if (SCRIPT_ENGINE == null) {
-            throw new RuntimeException("failed to initialize javascript engine");
-        }
-    }
 
     public final Context CONTEXT;
     protected final ScriptBridge bridge;

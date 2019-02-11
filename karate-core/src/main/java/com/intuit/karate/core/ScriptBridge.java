@@ -312,9 +312,9 @@ public class ScriptBridge implements PerfContext {
         return context.tagValues;
     }    
     
-    public Map<String, Object> getInfo() {
+    public Object getInfo() { // will be JSON / map-like
         DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
-        return doc.read("$");        
+        return JsValue.toJsValue(doc.read("$"));        
     }
     
     public void proceed() {

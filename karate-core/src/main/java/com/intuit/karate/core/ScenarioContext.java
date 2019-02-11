@@ -315,6 +315,7 @@ public class ScenarioContext {
         config = new Config(sc.config); // safe copy
         rootFeatureContext = sc.rootFeatureContext;
         client = HttpClient.construct(config, this);
+        jsContext = sc.jsContext; // has to be before next line :( TODO
         bindings = new ScriptBindings(this);
         // state
         request = sc.request.copy();
@@ -324,8 +325,7 @@ public class ScenarioContext {
         prevPerfEvent = sc.prevPerfEvent;
         callResults = sc.callResults;
         webSocketClients = sc.webSocketClients;
-        signalResult = sc.signalResult;
-        jsContext = sc.jsContext;
+        signalResult = sc.signalResult;        
     }
 
     public void configure(Config config) {
