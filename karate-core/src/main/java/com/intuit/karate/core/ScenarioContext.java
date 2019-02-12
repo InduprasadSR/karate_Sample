@@ -40,6 +40,7 @@ import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.Config;
+import com.intuit.karate.JsUtils;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
@@ -78,9 +79,9 @@ public class ScenarioContext {
     public final ExecutionHook executionHook;
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
-    
-    public final Context jsContext;
 
+    public final Context jsContext;   
+    
     // these can get re-built or swapped, so cannot be final
     private Config config;
     private HttpClient client;
@@ -240,7 +241,7 @@ public class ScenarioContext {
             config = new Config();
             config.setClientClass(call.httpClientClass);
             rootFeatureContext = featureContext;
-            jsContext = Context.newBuilder().option("js.nashorn-compat", "true").allowAllAccess(true).build();
+            jsContext = JsUtils.createContext();
         }
         client = HttpClient.construct(config, this);
         bindings = new ScriptBindings(this);
@@ -325,7 +326,7 @@ public class ScenarioContext {
         prevPerfEvent = sc.prevPerfEvent;
         callResults = sc.callResults;
         webSocketClients = sc.webSocketClients;
-        signalResult = sc.signalResult;        
+        signalResult = sc.signalResult;
     }
 
     public void configure(Config config) {

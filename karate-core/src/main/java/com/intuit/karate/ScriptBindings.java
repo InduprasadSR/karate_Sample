@@ -26,6 +26,7 @@ package com.intuit.karate;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.exception.KarateAbortException;
+import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import java.io.File;
 import java.util.Collection;
@@ -33,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.script.Bindings;
 import org.graalvm.polyglot.Context;
@@ -79,7 +81,7 @@ public class ScriptBindings implements Bindings {
         this.context = context;
         this.vars = context.vars;
         this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
-        bridge = new ScriptBridge(context);        
+        bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
         bindings = context.jsContext.getBindings("js");
         bindings.putMember(KARATE, bridge);
@@ -125,7 +127,9 @@ public class ScriptBindings implements Bindings {
         }
     }
 
-    private ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) { // TODO optimize
+    private synchronized ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) { // TODO optimize
+        Context jsContext = context.jsContext;
+        // jsContext.enter();        
         if (ec == null) {
             adds.remove(Script.VAR_SELF);
             bindings.removeMember(Script.VAR_SELF);
@@ -138,11 +142,13 @@ public class ScriptBindings implements Bindings {
             adds.put(Script.VAR_SELF, ec.selfValue.getAsJsValue());
             adds.put(Script.VAR_ROOT, new ScriptValue(ec.root).getAsJsValue());
             adds.put(Script.VAR_PARENT, new ScriptValue(ec.parent).getAsJsValue());
-        }        
+        }
         forEach((k, v) -> {
             bindings.putMember(k, v);
-        });        
-        return eval(exp, context.jsContext);
+        });
+        ScriptValue result = eval(exp, jsContext);
+        // jsContext.leave();
+        return result;
     }
 
     public static ScriptValue eval(String exp, Context context) {

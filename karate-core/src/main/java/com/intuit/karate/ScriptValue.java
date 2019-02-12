@@ -252,8 +252,8 @@ public class ScriptValue {
     }
 
     public ScriptValue invokeFunction(ScenarioContext context, Object callArg) {
-        Function function = getValue(Function.class);
-        return Script.evalJsFunctionCall(function, callArg, context);
+        JsFunction function = getValue(JsFunction.class);
+        return function.invoke(callArg, context);
     }
 
     public Map<String, Object> evalAsMap(ScenarioContext context) {
@@ -433,7 +433,7 @@ public class ScriptValue {
             type = Type.INPUT_STREAM;
         } else if (Script.isPrimitive(value.getClass())) {
             type = Type.PRIMITIVE;
-        } else if (value instanceof Function) {
+        } else if (value instanceof JsFunction) {
             type = Type.FUNCTION;
         } else if (value instanceof Feature) {
             type = Type.FEATURE;

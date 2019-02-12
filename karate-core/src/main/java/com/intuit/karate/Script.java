@@ -1632,8 +1632,8 @@ public class Script {
                     default:
                         throw new RuntimeException("only json or primitives allowed as (single) function call argument");
                 }
-                Function function = sv.getValue(Function.class);                
-                return evalJsFunctionCall(function, callArg, context);
+                JsFunction function = sv.getValue(JsFunction.class);                
+                return function.invoke(callArg, context);
             case FEATURE:
                 switch (argValue.getType()) {
                     case LIST:
@@ -1655,26 +1655,6 @@ public class Script {
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
-        }
-    }
-
-    public static ScriptValue evalJsFunctionCall(Function function, Object callArg, ScenarioContext context) {
-        Object result;
-        try {
-            if (callArg != null) {
-                result = function.apply(new Object[]{JsUtils.toJsValue(callArg)});
-            } else {
-                result = function.apply(new Object[]{});
-            }
-            Object jsValue = JsUtils.fromJsValue(result, context.jsContext);
-            return new ScriptValue(jsValue);
-        } catch (Exception e) {
-            String message = "javascript function call failed: " + e.getMessage();
-            if (context != null) {
-                context.logger.error(message);
-                context.logger.error("failed function body: " + function);
-            }
-            throw new KarateException(message);
         }
     }
 

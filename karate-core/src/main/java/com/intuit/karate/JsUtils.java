@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.Value;
 import org.w3c.dom.Node;
 
@@ -40,6 +41,15 @@ import org.w3c.dom.Node;
  * @author pthomas3
  */
 public class JsUtils {
+
+    private static final Engine ENGINE = Engine.create();
+
+    public static Context createContext() {
+        return Context.newBuilder("js")
+                .engine(ENGINE)
+                .option("js.nashorn-compat", "true")
+                .allowAllAccess(true).build();
+    }
 
     public static String toJson(Value v, Context c) {
         Value stringify = c.eval("js", "JSON.stringify");
@@ -52,6 +62,8 @@ public class JsUtils {
             return new JsList((List) o);
         } else if (o instanceof Map) {
             return new JsMap((Map) o);
+        } else if (o instanceof JsFunction) {
+            return ((JsFunction) o).value;
         } else {
             return o;
         }
@@ -68,7 +80,7 @@ public class JsUtils {
         } else if (v.isNull()) {
             return null;
         } else if (v.canExecute()) {
-            return v.as(Function.class);
+            return new JsFunction(v, c);
         } else if (v.isHostObject()) {
             Object o = v.asHostObject();
             if (o instanceof JsMap) {
@@ -96,7 +108,7 @@ public class JsUtils {
                 return ((JsList) o).getValue();
             } else {
                 throw new RuntimeException("unexpected proxy: " + o);
-            }            
+            }
         } else if (v.hasMembers()) { // object or array that originated from JS
             String json = toJson(v, c);
             return JsonUtils.toJsonDoc(json).read("$");

@@ -25,6 +25,7 @@ package com.intuit.karate.core;
 
 import com.intuit.karate.AssertionResult;
 import com.intuit.karate.FileUtils;
+import com.intuit.karate.JsFunction;
 import com.intuit.karate.JsMap;
 import com.intuit.karate.JsUtils;
 import com.intuit.karate.JsonUtils;
@@ -311,8 +312,8 @@ public class ScriptBridge implements PerfContext {
                 Feature feature = sv.getValue(Feature.class);
                 return Script.evalFeatureCall(feature, arg, context, false).getValue();
             case FUNCTION:
-                Function function = sv.getValue(Function.class);
-                return Script.evalJsFunctionCall(function, arg, context).getValue();
+                JsFunction function = sv.getValue(JsFunction.class);
+                return function.invoke(arg, context).getValue();
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
@@ -427,7 +428,8 @@ public class ScriptBridge implements PerfContext {
         if (!value.canExecute()) {
             throw new RuntimeException("not a JS function: " + value);
         }
-        return context.listen(timeout, () -> Script.evalJsFunctionCall(value.as(Function.class), null, context));
+        JsFunction function = new JsFunction(value, context.jsContext);
+        return context.listen(timeout, () -> function.invoke(null, context));
     }
 
     public Object listen(long timeout) {
