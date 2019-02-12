@@ -28,13 +28,8 @@ import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.exception.KarateAbortException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import java.io.File;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-import javax.script.Bindings;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -42,13 +37,12 @@ import org.graalvm.polyglot.Value;
  *
  * @author pthomas3
  */
-public class ScriptBindings implements Bindings {
+public class ScriptBindings {
 
     protected final ScenarioContext context;
     protected final ScriptBridge bridge;
     protected final Value bindings;
 
-    private final ScriptValueMap vars;
     private final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
@@ -77,7 +71,6 @@ public class ScriptBindings implements Bindings {
 
     public ScriptBindings(ScenarioContext context) {
         this.context = context;
-        this.vars = context.vars;
         this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
         bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
@@ -129,11 +122,14 @@ public class ScriptBindings implements Bindings {
             adds.put(Script.VAR_ROOT, new ScriptValue(ec.root).getAsJsValue());
             adds.put(Script.VAR_PARENT, new ScriptValue(ec.parent).getAsJsValue());
         }
-        forEach((k, v) -> {
-            bindings.putMember(k, v);
+        context.vars.forEach((k, v) -> {
+            bindings.putMember(k, v.getAsJsValue());
+        });
+        adds.forEach((k, v) -> {
+            bindings.putMember(k, JsUtils.toJsValue(v));
         });
         for (String key : bindings.getMemberKeys()) {
-            if (!containsKey(key)) {
+            if (!context.vars.containsKey(key) && !adds.containsKey(key)) {
                 try {
                     bindings.removeMember(key);
                 } catch (Exception e) {
@@ -167,83 +163,6 @@ public class ScriptBindings implements Bindings {
 
     public void putAdditionalVariable(String name, Object value) {
         adds.put(name, value);
-    }
-
-    @Override
-    public Object get(Object key) {
-        ScriptValue sv = vars.get(key);
-        if (sv == null) {
-            return adds.get(key);
-        }
-        return sv.getAsJsValue();
-    }
-
-    @Override
-    public Object put(String name, Object value) {
-        return adds.put(name, value);
-    }
-
-    @Override
-    public void putAll(Map<? extends String, ? extends Object> toMerge) {
-        adds.putAll(toMerge);
-    }
-
-    @Override
-    public boolean containsKey(Object key) {
-        // this has to be implemented correctly ! else nashorn won't return 'undefined'
-        return vars.containsKey(key) || adds.containsKey(key);
-    }
-
-    @Override
-    public int size() {
-        return vars.size() + adds.size();
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return false;
-    }
-
-    @Override
-    public Set<String> keySet() {
-        Set<String> keys = new HashSet(vars.keySet());
-        keys.addAll(adds.keySet());
-        return keys;
-    }
-
-    // these are never called by nashorn =======================================
-    @Override
-    public Collection<Object> values() {
-        return entrySet().stream().map(Entry::getValue).collect(Collectors.toList());
-    }
-
-    @Override
-    public Set<Entry<String, Object>> entrySet() {
-        Map<String, Object> temp = new HashMap(size());
-        temp.putAll(adds); // duplicates possible ! the vars have priority, they will over-write next
-        vars.forEach((k, sv) -> {
-            // value should never be null, but unit tests may do this
-            Object value = sv == null ? null : sv.getAsJsValue();
-            temp.put(k, value);
-        });
-        return temp.entrySet();
-    }
-
-    @Override
-    public boolean containsValue(Object value) {
-        return values().contains(value);
-    }
-
-    @Override
-    public void clear() {
-        // this is wrong, but doesn't matter
-        adds.clear();
-    }
-
-    @Override
-    public Object remove(Object key) {
-        // this is wrong, but doesn't matter
-        return adds.remove(key);
     }
 
 }

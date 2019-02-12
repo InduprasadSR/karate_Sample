@@ -4,8 +4,7 @@ Scenario: complex 'global' json
     * match myObject == { error: [{id: 1},{id: 2}] }
 
 Scenario: a global js function
-    # TODO we lost functions when we serialize json in graal :(
-    # * assert myFunction() == 'hello world'
+    * assert myFunction() == 'hello world'
 
 Scenario: function re-use, global / shared scope
     * call read('common.feature')

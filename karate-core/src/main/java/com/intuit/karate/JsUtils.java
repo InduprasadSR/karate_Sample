@@ -110,7 +110,18 @@ public class JsUtils {
             }
         } else if (v.hasMembers()) { // object or array that originated from JS
             String json = toJson(v, c);
-            return JsonUtils.toJsonDoc(json).read("$");
+            Object mapOrList = JsonUtils.toJsonDoc(json).read("$");
+            if (mapOrList instanceof Map) {
+                // make sure functions also get serialized
+                Map map = (Map) mapOrList;
+                for (String key : v.getMemberKeys()) {
+                    if (!map.containsKey(key)) {
+                        Value value = v.getMember(key);
+                        map.put(key, fromJsValue(value, c));
+                    }
+                }
+            }
+            return mapOrList;
         } else {
             throw new RuntimeException("unable to unpack: " + v);
         }
