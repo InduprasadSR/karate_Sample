@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import java.util.Map;
+import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyObject;
 
@@ -44,7 +45,7 @@ public class JsMap implements ProxyObject {
     
     @Override
     public Object getMember(String key) {
-        return JsValue.toJsValue(map.get(key));
+        return JsUtils.toJsValue(map.get(key));
     }
 
     @Override
@@ -59,7 +60,7 @@ public class JsMap implements ProxyObject {
 
     @Override
     public void putMember(String key, Value value) {
-        map.put(key, JsValue.fromJsValueSimple(value));
+        map.put(key, JsUtils.fromJsValue(value, Context.getCurrent()));
     }
 
     @Override

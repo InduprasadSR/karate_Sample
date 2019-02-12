@@ -636,9 +636,7 @@ public class Script {
         } else if (sv.isMapLike()) {
             return JsonPath.parse(sv.getAsMap());
         } else if (sv.isJavaObject()) {
-            JsValue jv =  sv.getValue(JsValue.class);
-            Object o = jv.value.asHostObject(); // has to be separate step to avoid confusing  method overloading
-            return JsonUtils.toJsonDoc(o);
+            return sv.getAsJsonDocument();
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
             if (temp.getType() != JSON) {
@@ -655,10 +653,8 @@ public class Script {
             return sv.getValue(Node.class);
         } else if (sv.isMapLike()) {
             return XmlUtils.fromMap(sv.getAsMap());
-        } else if (sv.isJavaObject()) {
-            JsValue jv =  sv.getValue(JsValue.class);
-            Object o = jv.value.asHostObject(); // has to be separate step to avoid confusing  method overloading          
-            return XmlUtils.toXmlDoc(o);
+        } else if (sv.isJavaObject()) {         
+            return XmlUtils.toXmlDoc(sv.getAsJavaObject());
         } else if (sv.isStringOrStream()) {
             ScriptValue temp = evalKarateExpression(sv.getAsString(), context);
             if (temp.getType() != XML) {
@@ -1617,26 +1613,28 @@ public class Script {
     public static ScriptValue call(String name, String argString, ScenarioContext context, boolean reuseParentConfig) {
         ScriptValue argValue = evalKarateExpression(argString, context);
         ScriptValue sv = evalKarateExpression(name, context);
+        Object callArg = null;
         switch (sv.getType()) {
             case FUNCTION:
                 switch (argValue.getType()) {
                     case JSON:
                         // force to java map (or list)
-                        argValue = new ScriptValue(argValue.getValue(DocumentContext.class).read("$"));
+                        callArg = argValue.getValue(DocumentContext.class).read("$");
+                        break;
                     case MAP:
                     case LIST:
                     case STRING:
                     case INPUT_STREAM:
                     case PRIMITIVE:
                     case NULL:
+                        callArg = argValue.getValue();
                         break;
                     default:
                         throw new RuntimeException("only json or primitives allowed as (single) function call argument");
                 }
-                JsValue jv = sv.getValue(JsValue.class);
-                return evalFunctionCall(jv, argValue.getValue(), context);
+                Function function = sv.getValue(Function.class);                
+                return evalJsFunctionCall(function, callArg, context);
             case FEATURE:
-                Object callArg = null;
                 switch (argValue.getType()) {
                     case LIST:
                         callArg = argValue.getValue(List.class);
@@ -1660,27 +1658,21 @@ public class Script {
         }
     }
 
-    public static ScriptValue evalFunctionCall(JsValue jv, Object callArg, ScenarioContext context) {
-        // injects the 'karate' variable into the js function body
-        // also ensure that things like 'karate.get' operate on the latest variable state
-        if (context != null) {
-            Value bindings = jv.context.getBindings("js");
-            bindings.putMember(ScriptBindings.KARATE, context.bindings.bridge);
-        }
-        Value result;
+    public static ScriptValue evalJsFunctionCall(Function function, Object callArg, ScenarioContext context) {
+        Object result;
         try {
             if (callArg != null) {
-                result = jv.value.execute(JsValue.toJsValue(callArg));
+                result = function.apply(new Object[]{JsUtils.toJsValue(callArg)});
             } else {
-                result = jv.value.execute();
+                result = function.apply(new Object[]{});
             }
-            Object jsValue = JsValue.fromJsValue(result, jv.context);
+            Object jsValue = JsUtils.fromJsValue(result, context.jsContext);
             return new ScriptValue(jsValue);
         } catch (Exception e) {
             String message = "javascript function call failed: " + e.getMessage();
             if (context != null) {
                 context.logger.error(message);
-                context.logger.error("failed function body: " + jv.value);
+                context.logger.error("failed function body: " + function);
             }
             throw new KarateException(message);
         }

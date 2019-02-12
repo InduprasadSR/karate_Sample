@@ -21,9 +21,8 @@ public class JsValueTest {
         assertTrue(v.canExecute());
         Value res = v.execute();
         assertTrue(res.hasArrayElements());
-        JsValue jv = new JsValue(res, c);
-        logger.debug("json: {}", jv.toJson());
-        assertEquals("[\"a\",\"b\",\"c\"]", jv.toJson());
+        String json = JsUtils.toJson(res, c);
+        assertEquals("[\"a\",\"b\",\"c\"]", json);
         
         v = c.eval("js", "Java.type('com.intuit.karate.SimplePojo')");
         assertTrue(v.canInstantiate());        

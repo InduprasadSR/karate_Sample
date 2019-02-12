@@ -24,6 +24,7 @@
 package com.intuit.karate;
 
 import java.util.List;
+import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.graalvm.polyglot.proxy.ProxyArray;
 
@@ -45,12 +46,12 @@ public class JsList implements ProxyArray {
 
     @Override
     public Object get(long index) {
-        return JsValue.toJsValue(list.get((int) index));
+        return JsUtils.toJsValue(list.get((int) index));
     }
 
     @Override
     public void set(long index, Value value) {
-        list.set((int) index, JsValue.fromJsValueSimple(value));
+        list.set((int) index, JsUtils.fromJsValue(value, Context.getCurrent()));
     }
 
     @Override

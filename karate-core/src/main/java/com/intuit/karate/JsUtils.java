@@ -24,100 +24,41 @@
 package com.intuit.karate;
 
 import com.intuit.karate.core.Feature;
+import com.jayway.jsonpath.DocumentContext;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
-import org.graalvm.polyglot.proxy.Proxy;
 import org.w3c.dom.Node;
 
 /**
  *
  * @author pthomas3
  */
-public class JsValue {
+public class JsUtils {
 
-    public final Context context;
-    public final Value value;
-    public final boolean function;
-
-    public JsValue(Value value, Context context) {
-        this.value = value;
-        this.context = context;
-        this.function = value.canExecute();
-    }
-    
     public static String toJson(Value v, Context c) {
         Value stringify = c.eval("js", "JSON.stringify");
         Value json = stringify.execute(v);
-        return json.asString();        
-    }
-
-    public String toJson() {
-        return toJson(value, context);
+        return json.asString();
     }
 
     public static Object toJsValue(Object o) {
-        if (o instanceof JsValue) { // FUNCTION, JAVA_OBJECT
-            return ((JsValue) o).value;
-        } else if (o instanceof List) {
+        if (o instanceof List) {
             return new JsList((List) o);
         } else if (o instanceof Map) {
-            return new JsMap((Map) o);           
+            return new JsMap((Map) o);
         } else {
             return o;
         }
     }
-    
-    public static Object fromJsValue(Value v, Context c) {        
-        if (v.canExecute()) {
-            return new JsValue(v, c);
-        } else if (v.isString()) {
-            return v.asString();
-        } else if (v.isNumber()) {
-            return v.as(Number.class);
-        } else if (v.isBoolean()) {
-            return v.asBoolean();
-        } else if (v.isNull()) {
-            return null;            
-        } else if (v.isHostObject()) {
-            Object o = v.asHostObject();
-            if (o instanceof JsMap) {
-                return ((JsMap) o).getValue();
-            } else if (o instanceof JsList) {
-                return ((JsList) o).getValue();
-            } else if (o instanceof Feature 
-                    || o instanceof InputStream
-                    || o instanceof Node
-                    // Map and List can happen when a Java function returns Map or List
-                    || o instanceof Map && !(o instanceof Properties) // relevant edge case
-                    || o instanceof List
-                    || o instanceof BigDecimal) {
-                return o;
-            } else { // unknown Java object
-                return new JsValue(v, c);
-            }            
-        } else if (v.isProxyObject()) {
-            Proxy proxy = v.asProxyObject();
-            if (proxy instanceof JsList) {
-                return ((JsList) proxy).getValue();
-            } else if (proxy instanceof JsMap) {
-                return ((JsMap) proxy).getValue();
-            } else {
-                throw new RuntimeException("unexpected proxy: " + proxy);
-            }
-        } else if (v.hasMembers()) { // object or array that originated from JS
-            String json = toJson(v, c);
-            return JsonUtils.toJsonDoc(json).read("$");
-        } else {
-            throw new RuntimeException("unable to unpack: " + v);
-        }
-    }
-    
-    public static Object fromJsValueSimple(Value v) {
+
+    public static Object fromJsValue(Object object, Context c) {
+        Value v = Value.asValue(object);
         if (v.isString()) {
             return v.asString();
         } else if (v.isNumber()) {
@@ -125,12 +66,43 @@ public class JsValue {
         } else if (v.isBoolean()) {
             return v.asBoolean();
         } else if (v.isNull()) {
-            return null;            
-        } else if (v.isHostObject()) { 
-            return v.asHostObject();
+            return null;
+        } else if (v.canExecute()) {
+            return v.as(Function.class);
+        } else if (v.isHostObject()) {
+            Object o = v.asHostObject();
+            if (o instanceof JsMap) {
+                return ((JsMap) o).getValue();
+            } else if (o instanceof JsList) {
+                return ((JsList) o).getValue();
+            } else if (o instanceof Feature
+                    || o instanceof DocumentContext
+                    || o instanceof Node
+                    // rare cases of nested call and js functions 
+                    || o instanceof Map && !(o instanceof Properties) // relevant edge case
+                    || o instanceof List
+                    || o instanceof InputStream
+                    || o instanceof byte[]
+                    || o instanceof BigDecimal) {
+                return o;
+            } else {
+                return v;
+            }
+        } else if (v.isProxyObject()) {
+            Object o = v.asProxyObject();
+            if (o instanceof JsMap) {
+                return ((JsMap) o).getValue();
+            } else if (o instanceof JsList) {
+                return ((JsList) o).getValue();
+            } else {
+                throw new RuntimeException("unexpected proxy: " + o);
+            }            
+        } else if (v.hasMembers()) { // object or array that originated from JS
+            String json = toJson(v, c);
+            return JsonUtils.toJsonDoc(json).read("$");
         } else {
-            return v;
-        }    
+            throw new RuntimeException("unable to unpack: " + v);
+        }
     }
-    
+
 }

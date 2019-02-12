@@ -26,7 +26,7 @@ package com.intuit.karate.core;
 import com.intuit.karate.AssertionResult;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsMap;
-import com.intuit.karate.JsValue;
+import com.intuit.karate.JsUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.PerfContext;
 import com.intuit.karate.Script;
@@ -54,6 +54,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.w3c.dom.Document;
@@ -115,9 +116,8 @@ public class ScriptBridge implements PerfContext {
         }
     }
 
-    private static Object fromJs(Value v) {
-        Context c = Context.getCurrent();
-        return JsValue.fromJsValue(v, c);
+    private Object fromJs(Value v) {
+        return JsUtils.fromJsValue(v, context.jsContext);
     }
 
     public void set(String name, Value v) {
@@ -188,7 +188,7 @@ public class ScriptBridge implements PerfContext {
                 Value temp = v.getMember(key);
                 list.add(fromJs(temp));
             }
-            return JsValue.toJsValue(list);
+            return JsUtils.toJsValue(list);
         } else {
             return Collections.EMPTY_LIST;
         }
@@ -199,7 +199,7 @@ public class ScriptBridge implements PerfContext {
         Map<String, Object> map = new HashMap(2);
         map.put("pass", result.pass);
         map.put("message", result.message);
-        return JsValue.toJsValue(map);
+        return JsUtils.toJsValue(map);
     }
 
     public void forEach(Map<String, Object> map, Value fun) {
@@ -237,7 +237,7 @@ public class ScriptBridge implements PerfContext {
             Value v = fun.execute(list.get(i), i);
             res.add(fromJs(v));
         }
-        return JsValue.toJsValue(res);
+        return JsUtils.toJsValue(res);
     }
 
     public Object filter(List list, Value fun) {
@@ -260,7 +260,7 @@ public class ScriptBridge implements PerfContext {
                 }
             }
         }
-        return JsValue.toJsValue(res);
+        return JsUtils.toJsValue(res);
     }
 
     public Object jsonPath(Object o, String exp) {
@@ -271,12 +271,12 @@ public class ScriptBridge implements PerfContext {
             doc = JsonPath.parse(o);
         }
         Object result = doc.read(exp);
-        return JsValue.toJsValue(result);
+        return JsUtils.toJsValue(result);
     }
 
     public Object lowerCase(Object o) {
         ScriptValue sv = new ScriptValue(o);
-        return JsValue.toJsValue(sv.toLowerCase());
+        return JsUtils.toJsValue(sv.toLowerCase());
     }
 
     public Object xmlPath(Object o, String path) {
@@ -311,8 +311,8 @@ public class ScriptBridge implements PerfContext {
                 Feature feature = sv.getValue(Feature.class);
                 return Script.evalFeatureCall(feature, arg, context, false).getValue();
             case FUNCTION:
-                JsValue jv = sv.getValue(JsValue.class);
-                return Script.evalFunctionCall(jv, arg, context).getValue();
+                Function function = sv.getValue(Function.class);
+                return Script.evalJsFunctionCall(function, arg, context).getValue();
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
@@ -364,7 +364,7 @@ public class ScriptBridge implements PerfContext {
 
     public Object getInfo() { // will be JSON / map-like
         DocumentContext doc = JsonUtils.toJsonDoc(context.scenarioInfo);
-        return JsValue.toJsValue(doc.read("$"));
+        return JsUtils.toJsValue(doc.read("$"));
     }
 
     public void proceed() {
@@ -427,8 +427,7 @@ public class ScriptBridge implements PerfContext {
         if (!value.canExecute()) {
             throw new RuntimeException("not a JS function: " + value);
         }
-        JsValue jsValue = new JsValue(value, context.bindings.CONTEXT);
-        return context.listen(timeout, () -> Script.evalFunctionCall(jsValue, null, context));
+        return context.listen(timeout, () -> Script.evalJsFunctionCall(value.as(Function.class), null, context));
     }
 
     public Object listen(long timeout) {
@@ -512,8 +511,8 @@ public class ScriptBridge implements PerfContext {
         return context.featureContext.env;
     }
 
-    public Properties getProperties() {
-        return System.getProperties();
+    public Object getProperties() {
+        return JsUtils.toJsValue(System.getProperties());
     }
 
     public void setLocation(String expression) {

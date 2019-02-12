@@ -39,17 +39,14 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
 /**
- * this class exists as a performance optimization - we init Nashorn only once
- * and set up the Bindings to Karate variables only once per scenario
- *
- * we also avoid re-creating hash-maps as far as possible
  *
  * @author pthomas3
  */
 public class ScriptBindings implements Bindings {
 
-    public final Context CONTEXT;
+    protected final ScenarioContext context;
     protected final ScriptBridge bridge;
+    protected final Value bindings;
 
     private final ScriptValueMap vars;
     private final Map<String, Object> adds;
@@ -79,16 +76,16 @@ public class ScriptBindings implements Bindings {
     private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
 
     public ScriptBindings(ScenarioContext context) {
-        CONTEXT = context.jsContext;
+        this.context = context;
         this.vars = context.vars;
         this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
         bridge = new ScriptBridge(context);        
         adds.put(KARATE, bridge);
-        Value bindings = CONTEXT.getBindings("js");
+        bindings = context.jsContext.getBindings("js");
         bindings.putMember(KARATE, bridge);
         // the next line calls an eval with 'incomplete' bindings
         // i.e. only the 'karate' bridge has been bound so far
-        ScriptValue readFunction = eval(READ_FUNCTION, CONTEXT);
+        ScriptValue readFunction = eval(READ_FUNCTION, context.jsContext);
         // and only now are the bindings complete - with the 'read' function
         adds.put(READ, readFunction.getAsJsValue());
     }
@@ -129,7 +126,6 @@ public class ScriptBindings implements Bindings {
     }
 
     private ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) { // TODO optimize
-        Value bindings = CONTEXT.getBindings("js");
         if (ec == null) {
             adds.remove(Script.VAR_SELF);
             bindings.removeMember(Script.VAR_SELF);
@@ -146,7 +142,7 @@ public class ScriptBindings implements Bindings {
         forEach((k, v) -> {
             bindings.putMember(k, v);
         });        
-        return eval(exp, CONTEXT);
+        return eval(exp, context.jsContext);
     }
 
     public static ScriptValue eval(String exp, Context context) {
@@ -155,7 +151,7 @@ public class ScriptBindings implements Bindings {
         }
         try {
             Value value = context.eval("js", exp);
-            Object jsValue = JsValue.fromJsValue(value, context);
+            Object jsValue = JsUtils.fromJsValue(value, context);
             return new ScriptValue(jsValue);
         } catch (Exception e) {
             String message = e.getMessage();

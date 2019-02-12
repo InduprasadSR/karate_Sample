@@ -27,11 +27,11 @@ public class ScriptBindingsTest {
         ScenarioContext ctx = getContext();
         String test = ctx.vars.get("someConfig", String.class);
         assertEquals("someValue", test);
-        ScriptValue sv = ScriptBindings.eval("['a', 'b', 'c']", ctx.bindings.CONTEXT);
+        ScriptValue sv = ScriptBindings.eval("['a', 'b', 'c']", ctx.jsContext);
         assertTrue(sv.isListLike());    
-        sv = ScriptBindings.eval("function(){ return ['a', 'b', 'c'] }", ctx.bindings.CONTEXT);
+        sv = ScriptBindings.eval("function(){ return ['a', 'b', 'c'] }", ctx.jsContext);
         assertTrue(sv.isFunction());
-        ScriptValue result = sv.invokeFunction(null, sv);
+        ScriptValue result = sv.invokeFunction(ctx, sv);
         assertTrue(result.isListLike());
         assertEquals("[\"a\",\"b\",\"c\"]", result.getAsString());
     }

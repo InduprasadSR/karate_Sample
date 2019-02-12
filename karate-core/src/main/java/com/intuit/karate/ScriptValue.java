@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import org.graalvm.polyglot.Value;
 import org.w3c.dom.Node;
 
 /**
@@ -144,6 +146,11 @@ public class ScriptValue {
     public boolean isJavaObject() {
         return type == Type.JAVA_OBJECT;
     }
+    
+    public Object getAsJavaObject() {
+        Value v = (Value) value;
+        return v.asHostObject();
+    }    
 
     public boolean isListLike() {
         switch (type) {
@@ -210,9 +217,7 @@ public class ScriptValue {
                 List list = getValue(List.class);
                 return JsonPath.parse(list);
             case JAVA_OBJECT:
-                JsValue jv = getValue(JsValue.class);
-                Object o = jv.value.asHostObject(); // has to be separate step to avoid confusing  method overloading
-                return JsonUtils.toJsonDoc(o);
+                return JsonUtils.toJsonDoc(getAsJavaObject());
             default:
                 throw new RuntimeException("cannot convert to json: " + this);
         }
@@ -247,8 +252,8 @@ public class ScriptValue {
     }
 
     public ScriptValue invokeFunction(ScenarioContext context, Object callArg) {
-        JsValue jv = getValue(JsValue.class);
-        return Script.evalFunctionCall(jv, callArg, context);
+        Function function = getValue(Function.class);
+        return Script.evalJsFunctionCall(function, callArg, context);
     }
 
     public Map<String, Object> evalAsMap(ScenarioContext context) {
@@ -376,7 +381,7 @@ public class ScriptValue {
     }
 
     public Object getAsJsValue() {
-        return JsValue.toJsValue(getAfterConvertingFromJsonOrXmlIfNeeded());
+        return JsUtils.toJsValue(getAfterConvertingFromJsonOrXmlIfNeeded());
     }
 
     public Object getAfterConvertingFromJsonOrXmlIfNeeded() {
@@ -428,17 +433,14 @@ public class ScriptValue {
             type = Type.INPUT_STREAM;
         } else if (Script.isPrimitive(value.getClass())) {
             type = Type.PRIMITIVE;
-        } else if (value instanceof JsValue) {
-            JsValue jsValue = (JsValue) value;
-            if (jsValue.function) {
-                type = Type.FUNCTION;
-            } else {
-                type = Type.JAVA_OBJECT;
-            }
+        } else if (value instanceof Function) {
+            type = Type.FUNCTION;
         } else if (value instanceof Feature) {
             type = Type.FEATURE;
+        } else if (value instanceof Value) {
+            type = Type.JAVA_OBJECT;
         } else {
-            throw new RuntimeException("unexpected type (script-value): " + value);
+            throw new RuntimeException("unexpected graal value: " + value);
         }
     }
 

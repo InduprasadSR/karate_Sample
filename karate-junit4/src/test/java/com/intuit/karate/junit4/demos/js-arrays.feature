@@ -19,6 +19,7 @@ Scenario: utilities to get info about json objects / keys and values
     * match keys == ['a', 'b']
     * def values = karate.valuesOf(payload)
     * match values == [1, 2]
+    * assert karate.sizeOf(payload) == 2
 
 Scenario: json-path can be performed in js
     * def json = [{foo: 1}, {foo: 2}]
