@@ -26,7 +26,6 @@ package com.intuit.karate.core;
 import com.intuit.karate.AssertionResult;
 import com.intuit.karate.FileUtils;
 import com.intuit.karate.JsFunction;
-import com.intuit.karate.JsMap;
 import com.intuit.karate.JsUtils;
 import com.intuit.karate.JsonUtils;
 import com.intuit.karate.PerfContext;
@@ -37,7 +36,6 @@ import com.intuit.karate.ScriptValueMap;
 import com.intuit.karate.StringUtils;
 import com.intuit.karate.XmlUtils;
 import com.intuit.karate.exception.KarateAbortException;
-import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.HttpResponse;
 import com.intuit.karate.http.HttpUtils;
@@ -51,12 +49,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -310,10 +305,12 @@ public class ScriptBridge implements PerfContext {
         switch (sv.getType()) {
             case FEATURE:
                 Feature feature = sv.getValue(Feature.class);
-                return Script.evalFeatureCall(feature, arg, context, false).getValue();
+                Object fo = Script.callFeature(feature, arg, context, false).getValue();
+                return JsUtils.toJsValue(fo); // TODO as script-value method
             case FUNCTION:
                 JsFunction function = sv.getValue(JsFunction.class);
-                return function.invoke(arg, context).getValue();
+                Object jo = function.invoke(arg, context).getValue();
+                return JsUtils.toJsValue(jo);
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", fileName, sv);
                 return null;
@@ -339,15 +336,16 @@ public class ScriptBridge implements PerfContext {
             }
             // this thread is the 'winner'
             context.logger.info(">> lock acquired, begin callSingle: {}", fileName);
-            Object result = call(fileName, arg);
-            GLOBALS.put(fileName, result);
+            Object jsValue = call(fileName, arg);
+            GLOBALS.put(fileName, jsValue);
             context.logger.info("<< lock released, cached callSingle: {}", fileName);
-            return result;
+            return jsValue;
         }
     }
 
-    public HttpRequest getPrevRequest() {
-        return context.getPrevRequest();
+    public Object getPrevRequest() { // TODO util to this
+        Map map = context.getPrevRequest().toMap();
+        return JsUtils.toJsValue(map);
     }
 
     public Object eval(String exp) {

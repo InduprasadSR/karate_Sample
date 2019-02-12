@@ -23,6 +23,7 @@
  */
 package com.intuit.karate.core;
 
+import com.intuit.karate.JsUtils;
 import com.intuit.karate.ScriptBindings;
 import com.intuit.karate.ScriptValue;
 import com.intuit.karate.StringUtils;
@@ -36,7 +37,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.script.Bindings;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -155,7 +155,7 @@ public class Tags implements Iterable<Tag> {
                 tagValues.put(tag.getName(), tag.getValues());
             }
         }
-        context = Context.newBuilder("js").allowAllAccess(true).build();
+        context = JsUtils.createContext();
         Value bindings = context.getBindings("js");
         bindings.putMember("bridge", this);
         ScriptValue anyOfFun = ScriptBindings.eval("function(){ return bridge.anyOf(arguments) }", context);

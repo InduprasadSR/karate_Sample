@@ -42,7 +42,7 @@ public class JsFunction {
         this.context = context;
     }
 
-    public ScriptValue invoke(Object arg, ScenarioContext ctx) {
+    public synchronized ScriptValue invoke(Object arg, ScenarioContext ctx) {
         Value result;
         try {
             if (arg != null) {

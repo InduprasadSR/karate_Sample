@@ -24,7 +24,9 @@
 package com.intuit.karate.http;
 
 import com.intuit.karate.core.Engine;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * this is only for capturing what was actually sent on the wire, read-only
@@ -133,5 +135,19 @@ public class HttpRequest {
     public void setBody(byte[] body) {
         this.body = body;
     }        
+    
+    public Map<String, Object> toMap() {
+        Map<String, Object> map = new HashMap(9);
+        map.put("startTime", startTime);
+        map.put("endTime", endTime);
+        map.put("responseTime", responseTime);
+        map.put("urlBase", urlBase);
+        map.put("uri", uri);
+        map.put("method", method);
+        map.put("headers", headers);
+        map.put("params", params);
+        map.put("body", body);
+        return map;
+    }
     
 }

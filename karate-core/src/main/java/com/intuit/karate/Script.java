@@ -63,7 +63,6 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.graalvm.polyglot.Value;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -416,11 +415,11 @@ public class Script {
     }
 
     public static ScriptValue evalJsExpression(String exp, ScenarioContext context) {
-        return ScriptBindings.evalInNashorn(exp, context, null);
+        return context.bindings.evalWithContext(exp, null);
     }
 
     public static ScriptValue evalJsExpression(String exp, ScenarioContext context, ScriptValue selfValue, Object root, Object parent) {
-        return ScriptBindings.evalInNashorn(exp, context, new ScriptEvalContext(selfValue, root, parent));
+        return context.bindings.evalWithContext(exp, new ScriptEvalContext(selfValue, root, parent));
     }
 
     private static final String VARIABLE_PATTERN_STRING = "[a-zA-Z][\\w]*";
@@ -1504,7 +1503,7 @@ public class Script {
             } else if (actObject instanceof Number && expObject instanceof Number) {
                 // use the JS engine for a lenient equality check
                 String exp = actObject + " == " + expObject;
-                ScriptValue sv = evalJsExpression(exp, null);
+                ScriptValue sv = ScriptBindings.eval(exp, JsUtils.createContext());
                 if (!sv.isBooleanTrue() && matchType != MatchType.NOT_EQUALS) {
                     return matchFailed(matchType, path, actObject, expObject, "not equal ("
                             + actObject.getClass().getSimpleName() + " : " + expObject.getClass().getSimpleName() + ")");
@@ -1651,14 +1650,14 @@ public class Script {
                         throw new RuntimeException("only json, list/array or map allowed as feature call argument");
                 }
                 Feature feature = sv.getValue(Feature.class);
-                return evalFeatureCall(feature, callArg, context, reuseParentConfig);
+                return callFeature(feature, callArg, context, reuseParentConfig);
             default:
                 context.logger.warn("not a js function or feature file: {} - {}", name, sv);
                 return ScriptValue.NULL;
         }
     }
 
-    public static ScriptValue evalFeatureCall(Feature feature, Object callArg, ScenarioContext context, boolean reuseParentConfig) {
+    public static ScriptValue callFeature(Feature feature, Object callArg, ScenarioContext context, boolean reuseParentConfig) {
         if (callArg instanceof Collection) { // JSON array
             Collection items = (Collection) callArg;
             Object[] array = items.toArray();
@@ -1670,7 +1669,7 @@ public class Script {
                     Map rowArgMap = (Map) rowArg;
                     try {
                         CallContext callContext = CallContext.forCall(feature, context, rowArgMap, i, reuseParentConfig);
-                        ScriptValue rowResult = evalFeatureCall(callContext);
+                        ScriptValue rowResult = callFeature(callContext);
                         result.add(rowResult.getValue());
                     } catch (KarateException ke) {
                         String message = "feature call (loop) failed at index: " + i + "\ncaller: "
@@ -1697,7 +1696,7 @@ public class Script {
             Map<String, Object> argAsMap = (Map) callArg;
             try {
                 CallContext callContext = CallContext.forCall(feature, context, argAsMap, -1, reuseParentConfig);
-                return evalFeatureCall(callContext);
+                return callFeature(callContext);
             } catch (KarateException ke) {
                 String message = "feature call failed: " + feature.getRelativePath()
                         + "\narg: " + callArg + "\n" + ke.getMessage();
@@ -1709,7 +1708,7 @@ public class Script {
         }
     }
 
-    private static ScriptValue evalFeatureCall(CallContext callContext) {
+    private static ScriptValue callFeature(CallContext callContext) {
         // the call is always going to execute synchronously ! TODO improve  
         FeatureResult result;
         Function<CallContext, FeatureResult> callable = callContext.context.getCallable();

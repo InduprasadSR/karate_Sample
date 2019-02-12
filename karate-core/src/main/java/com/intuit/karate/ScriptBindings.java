@@ -26,7 +26,6 @@ package com.intuit.karate;
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.core.ScriptBridge;
 import com.intuit.karate.exception.KarateAbortException;
-import com.intuit.karate.exception.KarateException;
 import com.intuit.karate.exception.KarateFileNotFoundException;
 import java.io.File;
 import java.util.Collection;
@@ -34,7 +33,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.script.Bindings;
 import org.graalvm.polyglot.Context;
@@ -119,24 +117,12 @@ public class ScriptBindings implements Bindings {
         }
     }
 
-    public static ScriptValue evalInNashorn(String exp, ScenarioContext context, ScriptEvalContext evalContext) {
-        if (context == null) {
-            return eval(exp, Context.create("js"));
-        } else {
-            return context.bindings.updateBindingsAndEval(exp, evalContext);
-        }
-    }
-
-    private synchronized ScriptValue updateBindingsAndEval(String exp, ScriptEvalContext ec) { // TODO optimize
-        Context jsContext = context.jsContext;
-        // jsContext.enter();        
+    public ScriptValue evalWithContext(String exp, ScriptEvalContext ec) { // TODO optimize
+        Context jsContext = context.jsContext;        
         if (ec == null) {
             adds.remove(Script.VAR_SELF);
-            bindings.removeMember(Script.VAR_SELF);
             adds.remove(Script.VAR_ROOT);
-            bindings.removeMember(Script.VAR_ROOT);
             adds.remove(Script.VAR_PARENT);
-            bindings.removeMember(Script.VAR_PARENT);
         } else {
             // ec.selfValue will never be null
             adds.put(Script.VAR_SELF, ec.selfValue.getAsJsValue());
@@ -146,9 +132,16 @@ public class ScriptBindings implements Bindings {
         forEach((k, v) -> {
             bindings.putMember(k, v);
         });
-        ScriptValue result = eval(exp, jsContext);
-        // jsContext.leave();
-        return result;
+        for (String key : bindings.getMemberKeys()) {
+            if (!containsKey(key)) {
+                try {
+                    bindings.removeMember(key);
+                } catch (Exception e) {
+                    // a variable was defined in JS that we can't erase
+                }
+            }
+        }
+        return eval(exp, jsContext);
     }
 
     public static ScriptValue eval(String exp, Context context) {

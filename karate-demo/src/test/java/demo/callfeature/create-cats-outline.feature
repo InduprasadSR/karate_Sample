@@ -11,7 +11,7 @@ Given path 'cats'
 And request { name: '<name>' }
 When method post
 Then status 200
-And eval kittens.add(response)
+And eval karate.add('kittens', response)
 
 Examples:
 | name |
