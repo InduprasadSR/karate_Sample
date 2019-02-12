@@ -78,6 +78,10 @@ public class ScriptBridge implements PerfContext {
     public void configure(String key, Value v) {
         context.configure(key, new ScriptValue(fromJs(v)));
     }
+    
+    public void configure(String key, Object o) { // for extreme java in js config attempts
+        configure(key, Value.asValue(o));
+    }    
 
     public Object read(String fileName) {
         ScriptValue sv = FileUtils.readFile(fileName, context);
@@ -406,28 +410,28 @@ public class ScriptBridge implements PerfContext {
         FileUtils.writeToFile(new File(path), sv.getAsByteArray());
     }
 
-    public WebSocketClient webSocket(String url, Consumer<String> textHandler) {
-        return context.webSocket(url, null, textHandler, null);
+    public WebSocketClient webSocket(String url, Value textHandlerValue) {
+        return context.webSocket(url, null, textHandlerValue, null);
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler) {
-        return context.webSocket(url, subProtocol, textHandler, null);
+    public WebSocketClient webSocket(String url, String subProtocol, Value textHandlerValue) {
+        return context.webSocket(url, subProtocol, textHandlerValue, null);
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
-        return context.webSocket(url, subProtocol, textHandler, binaryHandler);
+    public WebSocketClient webSocket(String url, String subProtocol, Value textHandlerValue, Value binaryHandlerValue) {
+        return context.webSocket(url, subProtocol, textHandlerValue, binaryHandlerValue);
     }
 
-    public void signal(Object result) {
-        context.signal(result);
+    public void signal(Value value) {
+        context.signal(fromJs(value));
     }
 
     public Object listen(long timeout, Value value) {
         if (!value.canExecute()) {
             throw new RuntimeException("not a JS function: " + value);
         }
-        JsFunction function = new JsFunction(value, context.jsContext);
-        return context.listen(timeout, () -> function.invoke(null, context));
+        Object result = context.listen(timeout, value);
+        return JsUtils.toJsValue(result);
     }
 
     public Object listen(long timeout) {

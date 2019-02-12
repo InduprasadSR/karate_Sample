@@ -40,6 +40,7 @@ import com.intuit.karate.exception.KarateFileNotFoundException;
 import com.intuit.karate.http.Cookie;
 import com.intuit.karate.http.HttpClient;
 import com.intuit.karate.Config;
+import com.intuit.karate.JsFunction;
 import com.intuit.karate.JsUtils;
 import com.intuit.karate.http.HttpRequest;
 import com.intuit.karate.http.HttpRequestBuilder;
@@ -59,6 +60,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Value;
 
 /**
  *
@@ -80,8 +82,8 @@ public class ScenarioContext {
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
 
-    public final Context jsContext;   
-    
+    public final Context jsContext;
+
     // these can get re-built or swapped, so cannot be final
     private Config config;
     private HttpClient client;
@@ -105,8 +107,6 @@ public class ScenarioContext {
     // ui support
     private Function<CallContext, FeatureResult> callable;
 
-    // websocket
-    private final Object LOCK = new Object();
     private List<WebSocketClient> webSocketClients;
     private Object signalResult;
 
@@ -803,7 +803,23 @@ public class ScenarioContext {
         prevEmbed = embed;
     }
 
-    public WebSocketClient webSocket(String url, String subProtocol, Consumer<String> textHandler, Consumer<byte[]> binaryHandler) {
+    public WebSocketClient webSocket(String url, String subProtocol, Value textHandlerValue, Value binaryHandlerValue) {
+        Consumer<String> textHandler = null;
+        Consumer<byte[]> binaryHandler = null;
+        if (textHandlerValue != null && textHandlerValue.canExecute()) {
+            textHandler = s -> {
+                synchronized (jsContext) {
+                    textHandlerValue.executeVoid(s);
+                }
+            };
+        }
+        if (binaryHandlerValue != null && binaryHandlerValue.canExecute()) {
+            binaryHandler = b -> {
+                synchronized (jsContext) {
+                    binaryHandlerValue.executeVoid(b);
+                }
+            };
+        }
         WebSocketClient webSocketClient = new WebSocketClient(url, subProtocol, textHandler, binaryHandler);
         if (webSocketClients == null) {
             webSocketClients = new ArrayList();
@@ -814,35 +830,34 @@ public class ScenarioContext {
 
     public void signal(Object result) {
         logger.trace("signal called: {}", result);
-        synchronized (LOCK) {
-            signalResult = result;
-            LOCK.notify();
-        }
+        signalResult = result;
     }
 
-    public Object listen(long timeout, Runnable runnable) {
-        if (runnable != null) {
+    public Object listen(long timeout, Value fun) {
+        if (fun != null) {
             logger.trace("submitting listen function");
-            new Thread(runnable).start();
+            new Thread(() -> {
+                synchronized (jsContext) {
+                    fun.executeVoid();
+                }
+            }).start();
         }
-        synchronized (LOCK) {
-            if (signalResult != null) {
-                logger.debug("signal arrived early ! result: {}", signalResult);
-                Object temp = signalResult;
-                signalResult = null;
-                return temp;
-            }
-            try {
-                logger.trace("entered listen wait state");
-                LOCK.wait(timeout);
-                logger.trace("exit listen wait state, result: {}", signalResult);
-            } catch (InterruptedException e) {
-                logger.error("listen timed out: {}", e.getMessage());
-            }
+        if (signalResult != null) {
+            logger.debug("signal arrived early ! result: {}", signalResult);
             Object temp = signalResult;
             signalResult = null;
             return temp;
         }
+        logger.trace("entered listen wait state");
+        try { // TODO use semaphore / thread signalling
+            Thread.sleep(timeout);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        logger.trace("exit listen wait state, result: {}", signalResult);
+        Object temp = signalResult;
+        signalResult = null;
+        return temp;
     }
 
     // driver ==================================================================       

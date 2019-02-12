@@ -71,7 +71,7 @@ public class ScriptBindings {
 
     public ScriptBindings(ScenarioContext context) {
         this.context = context;
-        this.adds = new HashMap(8); // read, karate, self, root, parent, nashorn.global, driver, responseBytes
+        this.adds = new HashMap(8); // read, karate, self, root, parent, driver, responseBytes
         bridge = new ScriptBridge(context);
         adds.put(KARATE, bridge);
         bindings = context.jsContext.getBindings("js");
@@ -110,8 +110,7 @@ public class ScriptBindings {
         }
     }
 
-    public ScriptValue evalWithContext(String exp, ScriptEvalContext ec) { // TODO optimize
-        Context jsContext = context.jsContext;        
+    public ScriptValue evalWithContext(String exp, ScriptEvalContext ec) { // TODO optimize                
         if (ec == null) {
             adds.remove(Script.VAR_SELF);
             adds.remove(Script.VAR_ROOT);
@@ -122,22 +121,24 @@ public class ScriptBindings {
             adds.put(Script.VAR_ROOT, new ScriptValue(ec.root).getAsJsValue());
             adds.put(Script.VAR_PARENT, new ScriptValue(ec.parent).getAsJsValue());
         }
-        context.vars.forEach((k, v) -> {
-            bindings.putMember(k, v.getAsJsValue());
-        });
-        adds.forEach((k, v) -> {
-            bindings.putMember(k, JsUtils.toJsValue(v));
-        });
-        for (String key : bindings.getMemberKeys()) {
-            if (!context.vars.containsKey(key) && !adds.containsKey(key)) {
-                try {
-                    bindings.removeMember(key);
-                } catch (Exception e) {
-                    // a variable was defined in JS that we can't erase
+        synchronized (context.jsContext) {
+            context.vars.forEach((k, v) -> {
+                bindings.putMember(k, v.getAsJsValue());
+            });
+            adds.forEach((k, v) -> {
+                bindings.putMember(k, JsUtils.toJsValue(v));
+            });
+            for (String key : bindings.getMemberKeys()) {
+                if (!context.vars.containsKey(key) && !adds.containsKey(key)) {
+                    try {
+                        bindings.removeMember(key);
+                    } catch (Exception e) {
+                        // a variable was defined in JS that we can't erase
+                    }
                 }
             }
+            return eval(exp, context.jsContext);
         }
-        return eval(exp, jsContext);
     }
 
     public static ScriptValue eval(String exp, Context context) {

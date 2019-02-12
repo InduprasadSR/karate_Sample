@@ -42,16 +42,18 @@ public class JsFunction {
         this.context = context;
     }
 
-    public synchronized ScriptValue invoke(Object arg, ScenarioContext ctx) {
+    public ScriptValue invoke(Object arg, ScenarioContext ctx) {
         Value result;
         try {
-            if (arg != null) {
-                result = value.execute(JsUtils.toJsValue(arg));
-            } else {
-                result = value.execute();
+            synchronized (context) {
+                if (arg != null) {
+                    result = value.execute(JsUtils.toJsValue(arg));
+                } else {
+                    result = value.execute();
+                }
+                Object object = JsUtils.fromJsValue(result, context);
+                return new ScriptValue(object);
             }
-            Object object = JsUtils.fromJsValue(result, context);
-            return new ScriptValue(object);
         } catch (Exception e) {
             String message = "javascript function call failed: " + e.getMessage();
             if (ctx != null) {

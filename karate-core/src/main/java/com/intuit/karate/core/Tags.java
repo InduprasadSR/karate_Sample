@@ -67,12 +67,12 @@ public class Tags implements Iterable<Tag> {
             this.values = values == null ? Collections.EMPTY_LIST : values;
             isPresent = !this.values.isEmpty();
         }
-        
+
         public boolean isPresent() {
             return isPresent;
         }
-        
-        public boolean isAnyOf(String ... args) {
+
+        public boolean isAnyOf(String... args) {
             for (String s : args) {
                 if (values.contains(s)) {
                     return true;
@@ -80,19 +80,19 @@ public class Tags implements Iterable<Tag> {
             }
             return false;
         }
-        
-        public boolean isAllOf(String ... args) {
+
+        public boolean isAllOf(String... args) {
             return values.containsAll(Arrays.asList(args));
         }
-        
-        public boolean isOnly(String ... args) {
+
+        public boolean isOnly(String... args) {
             return isAllOf(args) && args.length == values.size();
         }
-        
+
         public boolean isEach(Value v) {
             if (!v.canExecute()) {
                 return false;
-            }            
+            }
             for (String s : values) {
                 Value o = v.execute(s);
                 if (o.isBoolean()) {
@@ -122,8 +122,10 @@ public class Tags implements Iterable<Tag> {
         if (tagSelector == null) {
             return true;
         }
-        ScriptValue sv = ScriptBindings.eval(tagSelector, context);
-        return sv.isBooleanTrue();
+        synchronized (context) {
+            ScriptValue sv = ScriptBindings.eval(tagSelector, context);
+            return sv.isBooleanTrue();
+        }
     }
 
     public boolean contains(String tagText) {
@@ -140,7 +142,7 @@ public class Tags implements Iterable<Tag> {
 
     public Collection<Tag> getOriginal() {
         return original;
-    }        
+    }
 
     public Tags(Collection<Tag> in) {
         if (in == null) {
@@ -185,7 +187,7 @@ public class Tags implements Iterable<Tag> {
         return list;
     }
 
-    public boolean anyOf(Value v) {        
+    public boolean anyOf(Value v) {
         for (Object s : removeTagPrefix(v.as(List.class))) {
             if (tags.contains((String) s)) {
                 return true;
@@ -217,14 +219,14 @@ public class Tags implements Iterable<Tag> {
         }
         return list;
     }
-    
+
     public static String fromKarateOptionsTags(List<String> tags) {
         if (tags == null || tags.isEmpty()) {
             return null;
         }
         return fromKarateOptionsTags(tags.toArray(new String[]{}));
-    }    
-    
+    }
+
     public static String fromKarateOptionsTags(String... tags) {
         if (tags == null || tags.length == 0) {
             return null;
@@ -253,6 +255,6 @@ public class Tags implements Iterable<Tag> {
             }
         }
         return sb.toString();
-    }    
+    }
 
 }

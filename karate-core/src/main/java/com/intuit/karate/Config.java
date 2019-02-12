@@ -146,8 +146,8 @@ public class Config {
             case "httpClientClass":
                 clientClass = value.getAsString();
                 return true;
-            case "httpClientInstance":
-                clientInstance = value.getValue(HttpClient.class);
+            case "httpClientInstance":                
+                clientInstance = (HttpClient) value.getAsJavaObject();
                 return true;
             case "charset":
                 charset = value.isNull() ? null : Charset.forName(value.getAsString());
