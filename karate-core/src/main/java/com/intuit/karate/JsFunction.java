@@ -25,6 +25,8 @@ package com.intuit.karate;
 
 import com.intuit.karate.core.ScenarioContext;
 import com.intuit.karate.exception.KarateException;
+import java.util.HashMap;
+import java.util.Map;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
@@ -40,6 +42,30 @@ public class JsFunction {
     public JsFunction(Value value, Context context) {
         this.value = value;
         this.context = context;
+    }
+
+    public JsFunction copy(ScenarioContext sc) {
+        Context newContext = JsUtils.createContext();
+        Value bindings = newContext.getBindings("js");
+        bindings.putMember(ScriptBindings.KARATE, sc.bindings.bridge);
+        Value readFunction = newContext.eval("js", ScriptBindings.READ_FUNCTION);
+        bindings.putMember(ScriptBindings.READ, readFunction);
+        Map<String, JsFunction> functions = new HashMap();
+        sc.vars.forEach((k, v) -> {
+            if (v.isFunction()) {
+                functions.put(k, v.getValue(JsFunction.class));
+            } else {
+                bindings.putMember(k, v.getAsJsValue());
+            }
+        });
+        functions.forEach((k, v) -> {
+            String funBody = "(" + v.value.toString() + ")";
+            Value funValue = newContext.eval("js", funBody);
+            bindings.putMember(k, funValue);
+        });
+        String body = "(" + value.toString() + ")";
+        Value newValue = newContext.eval("js", body);
+        return new JsFunction(newValue, newContext);
     }
 
     public ScriptValue invoke(Object arg, ScenarioContext ctx) {

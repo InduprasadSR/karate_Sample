@@ -43,7 +43,7 @@ public class ScriptBindings {
     protected final ScriptBridge bridge;
     protected final Value bindings;
 
-    private final Map<String, Object> adds;
+    public final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
     public static final String KARATE_ENV = "karate.env";
@@ -67,7 +67,7 @@ public class ScriptBindings {
     public static final String BODY_PATH = "bodyPath";
     public static final String SERVER_PORT = "serverPort";
 
-    private static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
+    public static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
 
     public ScriptBindings(ScenarioContext context) {
         this.context = context;

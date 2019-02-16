@@ -31,9 +31,14 @@ public class ScriptBindingsTest {
         assertTrue(sv.isListLike());    
         sv = ScriptBindings.eval("function(){ return ['a', 'b', 'c'] }", ctx.jsContext);
         assertTrue(sv.isFunction());
-        ScriptValue result = sv.invokeFunction(ctx, sv);
+        ScriptValue result = sv.invokeFunction(ctx, null);
         assertTrue(result.isListLike());
         assertEquals("[\"a\",\"b\",\"c\"]", result.getAsString());
+        JsFunction old = sv.getValue(JsFunction.class);
+        JsFunction copy = old.copy(ctx);
+        result = copy.invoke(null, ctx);
+        assertTrue(result.isListLike());
+        assertEquals("[\"a\",\"b\",\"c\"]", result.getAsString());        
     }
     
 }

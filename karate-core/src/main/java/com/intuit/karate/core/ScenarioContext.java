@@ -807,18 +807,12 @@ public class ScenarioContext {
         Consumer<String> textHandler = null;
         Consumer<byte[]> binaryHandler = null;
         if (textHandlerValue != null && textHandlerValue.canExecute()) {
-            textHandler = s -> {
-                synchronized (jsContext) {
-                    textHandlerValue.executeVoid(s);
-                }
-            };
+            JsFunction textFunction = new JsFunction(textHandlerValue, jsContext).copy(this);
+            textHandler = s -> textFunction.invoke(s, this);
         }
         if (binaryHandlerValue != null && binaryHandlerValue.canExecute()) {
-            binaryHandler = b -> {
-                synchronized (jsContext) {
-                    binaryHandlerValue.executeVoid(b);
-                }
-            };
+            JsFunction binaryFunction = new JsFunction(binaryHandlerValue, jsContext).copy(this);
+            binaryHandler = b -> binaryFunction.invoke(b, this);
         }
         WebSocketClient webSocketClient = new WebSocketClient(url, subProtocol, textHandler, binaryHandler);
         if (webSocketClients == null) {
@@ -828,36 +822,40 @@ public class ScenarioContext {
         return webSocketClient;
     }
 
+    private final Object LOCK = new Object();
+
     public void signal(Object result) {
         logger.trace("signal called: {}", result);
-        signalResult = result;
+        synchronized (LOCK) {
+            signalResult = result;
+            LOCK.notify();
+        }
     }
 
     public Object listen(long timeout, Value fun) {
         if (fun != null) {
             logger.trace("submitting listen function");
-            new Thread(() -> {
-                synchronized (jsContext) {
-                    fun.executeVoid();
-                }
-            }).start();
+            JsFunction listenFunction = new JsFunction(fun, jsContext).copy(this);
+            new Thread(() -> listenFunction.invoke(null, this)).start();
         }
-        if (signalResult != null) {
-            logger.debug("signal arrived early ! result: {}", signalResult);
+        synchronized (LOCK) {
+            if (signalResult != null) {
+                logger.debug("signal arrived early ! result: {}", signalResult);
+                Object temp = signalResult;
+                signalResult = null;
+                return temp;
+            }
+            try {
+                logger.trace("entered listen wait state");
+                LOCK.wait(timeout);
+                logger.trace("exit listen wait state, result: {}", signalResult);
+            } catch (InterruptedException e) {
+                logger.error("listen timed out: {}", e.getMessage());
+            }
             Object temp = signalResult;
             signalResult = null;
             return temp;
         }
-        logger.trace("entered listen wait state");
-        try { // TODO use semaphore / thread signalling
-            Thread.sleep(timeout);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        logger.trace("exit listen wait state, result: {}", signalResult);
-        Object temp = signalResult;
-        signalResult = null;
-        return temp;
     }
 
     // driver ==================================================================       

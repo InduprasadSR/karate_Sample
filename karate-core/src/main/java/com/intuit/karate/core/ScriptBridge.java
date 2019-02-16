@@ -51,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import org.graalvm.polyglot.Value;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
@@ -528,7 +527,11 @@ public class ScriptBridge implements PerfContext {
             context.logger.info("{}", new LogWrapper(objects));
         }
     }
-
+    
+    public JsFunction toJava(Value value) {
+        return new JsFunction(value, context.jsContext).copy(context);
+    }
+    
     @Override
     public void capturePerfEvent(String name, long startTime, long endTime) {
         PerfEvent event = new PerfEvent(startTime, endTime, name, 200);

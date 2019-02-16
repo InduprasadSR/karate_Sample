@@ -23,7 +23,8 @@ public class JsValueTest {
         assertTrue(res.hasArrayElements());
         String json = JsUtils.toJson(res, c);
         assertEquals("[\"a\",\"b\",\"c\"]", json);
-        
+        String body = v.toString();
+        assertEquals("function(){ return ['a', 'b', 'c'] }", body);        
         v = c.eval("js", "Java.type('com.intuit.karate.SimplePojo')");
         assertTrue(v.canInstantiate());        
         c.getBindings("js").putMember("SimplePojo", v);

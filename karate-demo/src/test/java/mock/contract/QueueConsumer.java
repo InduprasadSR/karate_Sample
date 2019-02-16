@@ -1,5 +1,6 @@
 package mock.contract;
 
+import com.intuit.karate.JsFunction;
 import javax.jms.Connection;
 import javax.jms.Destination;
 import javax.jms.JMSException;
@@ -35,11 +36,11 @@ public class QueueConsumer {
         }
     }
 
-    public void listen(java.util.function.Consumer<String> handler) {
+    public void listen(JsFunction function) {
         setMessageListener(message -> {
             TextMessage tm = (TextMessage) message;
             try {
-                handler.accept(tm.getText());
+                function.value.executeVoid(tm.getText());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

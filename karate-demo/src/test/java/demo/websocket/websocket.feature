@@ -1,4 +1,3 @@
-@ignore
 @mock-servlet-todo
 Feature: websocket testing
 
@@ -16,7 +15,7 @@ Scenario: only listening to websocket messages
     And def id = response.id
 
     # this line will wait until karate.signal() has been called
-    * def result = karate.listen(5000)
+    * json result = karate.listen(5000)
     * match result == { id: '#(id)', content: 'hello Rudy !' }
 
 Scenario: using the websocket instance to send as well as receive messages
