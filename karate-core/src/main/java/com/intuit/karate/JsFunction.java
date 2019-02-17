@@ -36,10 +36,16 @@ import org.graalvm.polyglot.Value;
  */
 public class JsFunction {
 
+    public final String source;
     public final Value value;
     public final Context context;
 
     public JsFunction(Value value, Context context) {
+        this("(" + value.toString() + ")", value, context);
+    }
+
+    public JsFunction(String source, Value value, Context context) {
+        this.source = source;
         this.value = value;
         this.context = context;
     }
@@ -47,9 +53,8 @@ public class JsFunction {
     public JsFunction copy(ScenarioContext sc) {
         Context newContext = JsUtils.createContext();
         Value bindings = newContext.getBindings("js");
-        bindings.putMember(ScriptBindings.KARATE, sc.bindings.bridge);
-        Value readFunction = newContext.eval("js", ScriptBindings.READ_FUNCTION);
-        bindings.putMember(ScriptBindings.READ, readFunction);
+        bindings.putMember(ScriptBindings.KARATE, sc.bridge);
+        bindings.putMember(ScriptBindings.READ, sc.read);
         Map<String, JsFunction> functions = new HashMap();
         sc.vars.forEach((k, v) -> {
             if (v.isFunction()) {
@@ -59,13 +64,11 @@ public class JsFunction {
             }
         });
         functions.forEach((k, v) -> {
-            String funBody = "(" + v.value.toString() + ")";
-            Value funValue = newContext.eval("js", funBody);
+            Value funValue = newContext.eval("js", v.source);
             bindings.putMember(k, funValue);
         });
-        String body = "(" + value.toString() + ")";
-        Value newValue = newContext.eval("js", body);
-        return new JsFunction(newValue, newContext);
+        Value newValue = newContext.eval("js", source);
+        return new JsFunction(source, newValue, newContext);
     }
 
     public ScriptValue invoke(Object arg, ScenarioContext ctx) {

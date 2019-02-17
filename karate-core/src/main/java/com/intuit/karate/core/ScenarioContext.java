@@ -81,6 +81,17 @@ public class ScenarioContext {
     public final ExecutionHook executionHook;
     public final boolean perfMode;
     public final ScenarioInfo scenarioInfo;
+    
+    public final ScriptBridge bridge = new ScriptBridge(this);
+    
+    public final Function<String, Object> read = s -> {
+        ScriptValue sv = FileUtils.readFile(s, this);
+        if (sv.isXml()) {
+            return sv.getValue();
+        } else {
+            return sv.getAsJsValue();
+        }
+    };
 
     public final Context jsContext;
 
@@ -316,8 +327,8 @@ public class ScenarioContext {
         config = new Config(sc.config); // safe copy
         rootFeatureContext = sc.rootFeatureContext;
         client = HttpClient.construct(config, this);
-        jsContext = sc.jsContext; // has to be before next line :( TODO
-        bindings = new ScriptBindings(this);
+        jsContext = sc.jsContext;
+        bindings = new ScriptBindings(this); // else dynamic scenario outline breaks
         // state
         request = sc.request.copy();
         driver = sc.driver;

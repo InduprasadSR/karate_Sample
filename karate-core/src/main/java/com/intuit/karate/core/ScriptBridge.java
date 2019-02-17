@@ -83,12 +83,7 @@ public class ScriptBridge implements PerfContext {
     }    
 
     public Object read(String fileName) {
-        ScriptValue sv = FileUtils.readFile(fileName, context);
-        if (sv.isXml()) {
-            return sv.getValue();
-        } else {
-            return sv.getAsJsValue();
-        }
+        return context.read.apply(fileName);
     }
 
     public String readAsString(String fileName) {

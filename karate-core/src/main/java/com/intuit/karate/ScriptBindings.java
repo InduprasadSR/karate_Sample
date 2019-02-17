@@ -39,11 +39,10 @@ import org.graalvm.polyglot.Value;
  */
 public class ScriptBindings {
 
-    protected final ScenarioContext context;
-    protected final ScriptBridge bridge;
-    protected final Value bindings;
+    private final ScenarioContext context;
+    private final Value bindings;
 
-    public final Map<String, Object> adds;
+    private final Map<String, Object> adds;
 
     public static final String KARATE = "karate";
     public static final String KARATE_ENV = "karate.env";
@@ -67,20 +66,14 @@ public class ScriptBindings {
     public static final String BODY_PATH = "bodyPath";
     public static final String SERVER_PORT = "serverPort";
 
-    public static final String READ_FUNCTION = String.format("function(path){ return %s.%s(path) }", KARATE, READ);
-
     public ScriptBindings(ScenarioContext context) {
         this.context = context;
-        this.adds = new HashMap(8); // read, karate, self, root, parent, driver, responseBytes
-        bridge = new ScriptBridge(context);
-        adds.put(KARATE, bridge);
+        this.adds = new HashMap(8); // read, karate, self, root, parent, driver, responseBytes       
+        adds.put(KARATE, context.bridge);
+        adds.put(READ, context.read);
         bindings = context.jsContext.getBindings("js");
-        bindings.putMember(KARATE, bridge);
-        // the next line calls an eval with 'incomplete' bindings
-        // i.e. only the 'karate' bridge has been bound so far
-        ScriptValue readFunction = eval(READ_FUNCTION, context.jsContext);
-        // and only now are the bindings complete - with the 'read' function
-        adds.put(READ, readFunction.getAsJsValue());
+        bindings.putMember(KARATE, context.bridge);
+        bindings.putMember(READ, context.read);
     }
 
     private static final String READ_INVOKE = "%s('%s%s')";
