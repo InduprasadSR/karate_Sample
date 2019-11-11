@@ -11,20 +11,22 @@ class CatsKarateSimulation extends Simulation {
   val feeder = Iterator.continually(Map("catName" -> MockUtils.getNextCatName))
 
   val protocol = karateProtocol(
-    "/cats/{id}" -> Nil,
-    "/cats" -> pauseFor("get" -> 15, "post" -> 25)
+    "/cats/{id}" -> Nil
   )
 
   protocol.nameResolver = (req, ctx) => req.getHeader("karate-name")
 
   val create = scenario("create").feed(feeder).exec(karateFeature("classpath:mock/cats-create.feature"))
   val delete = scenario("delete").exec(karateFeature("classpath:mock/cats-delete.feature@name=delete"))
-  val custom = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))
+  // val custom = scenario("custom").exec(karateFeature("classpath:mock/custom-rpc.feature"))
 
   setUp(
-    create.inject(rampUsers(10) during (5 seconds)).protocols(protocol),
-    delete.inject(rampUsers(5) during (5 seconds)).protocols(protocol),
-    custom.inject(rampUsers(10) during (5 seconds)).protocols(protocol)
+    create.inject(
+      constantConcurrentUsers(5) during (5 seconds),
+      rampConcurrentUsers(5) to (10) during (5 seconds)
+    ).protocols(protocol)
+    //delete.inject(rampUsers(5) during (5 seconds)).protocols(protocol)
+    // custom.inject(rampUsers(10) during (5 seconds)).protocols(protocol)
   )
 
 }

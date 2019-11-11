@@ -12,7 +12,6 @@ class CatsGatlingSimulation extends Simulation {
   val httpConf = http.baseUrl(System.getProperty("mock.cats.url"))
 
   val create = scenario("create")
-    .pause(25 milliseconds)
     .exec(http("POST /cats")
       .post("/")
       .body(StringBody("""{ "name": "Billie" }"""))
@@ -21,7 +20,7 @@ class CatsGatlingSimulation extends Simulation {
       .check(jsonPath("$.id")
         .saveAs("id")))
 
-    .pause(10 milliseconds).exec(
+    .exec(
     http("GET /cats/{id}")
       .get("/${id}")
       .check(status.is(200))
@@ -37,13 +36,12 @@ class CatsGatlingSimulation extends Simulation {
         .check(jsonPath("$.id").is("${id}"))
         .check(jsonPath("$.name").is("Bob")))
 
-    .pause(10 milliseconds).exec(
+    .exec(
     http("GET /cats/{id}")
       .get("/${id}")
       .check(status.is(200)))
 
-  val delete = scenario("delete")
-    .pause(15 milliseconds).exec(
+  val delete = scenario("delete").exec(
     http("GET /cats")
       .get("/")
       .check(status.is(200))
@@ -52,13 +50,13 @@ class CatsGatlingSimulation extends Simulation {
 
     .doIf(_.contains("ids")) {
       foreach("${ids}", "id") {
-        pause(20 milliseconds).exec(
+        exec(
           http("DELETE /cats/{id}")
             .delete("/${id}")
             .check(status.is(200))
             .check(bodyString.is("")))
 
-          .pause(10 milliseconds).exec(
+          .exec(
           http("GET /cats/{id}")
             .get("/${id}")
             .check(status.is(404)))
@@ -66,8 +64,14 @@ class CatsGatlingSimulation extends Simulation {
     }
 
   setUp(
-    create.inject(rampUsers(10) during (5 seconds)).protocols(httpConf),
-    delete.inject(rampUsers(5) during (5 seconds)).protocols(httpConf)
+    create.inject(
+      constantConcurrentUsers(5) during (5 seconds),
+      rampConcurrentUsers(5) to (10) during (5 seconds)
+    ).protocols(httpConf)
+//    delete.inject(
+//      constantConcurrentUsers(5) during (10 seconds),
+//      rampConcurrentUsers(5) to (10) during (10 seconds)
+//    ).protocols(httpConf)
   )
 
 }
