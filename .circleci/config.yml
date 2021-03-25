@@ -19,3 +19,5 @@ steps:
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     goals: 'package'
+- store_artifacts:
+    path: /bin/final_build
