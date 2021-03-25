@@ -6,8 +6,8 @@ orbs:
 workflows:
   maven_test:
     jobs:
-      - maven/test
-
+      - maven/test 
+   
 steps:
 - task: Maven@3
   inputs:
@@ -16,6 +16,8 @@ steps:
     javaHomeOption: 'JDKVersion'
     jdkVersionOption: '1.8'
     jdkArchitectureOption: 'x64'
+    command:
+      - mvn test -Dtest=KarateJunitTest.java
     publishJUnitResults: true
     testResultsFiles: '**/surefire-reports/TEST-*.xml'
     goals: 'package'
